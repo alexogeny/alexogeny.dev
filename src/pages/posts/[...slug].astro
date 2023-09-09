@@ -20,11 +20,11 @@ if (slug === undefined) {
 
 {
   slug ? (
-    <BaseLayout title={entry.title}>
+    <BaseLayout title={entry.data.title}>
       <article>
-        <h1>{entry.title}</h1>
+        <h1>{entry.data.title}</h1>
         <p>
-          By {author.data.name} on {entry.date}
+          By {author.data.name} on {entry.data.date}
         </p>
         <Content />
       </article>
@@ -34,7 +34,9 @@ if (slug === undefined) {
       <ul>
         {posts.map((post) => (
           <li>
-            <a href={`/posts/${post.slug}`}>{post.data.title}</a>
+            <a href={`/posts/${post.slug}`}>{post.data.title}</a> -{" "}
+            <a href={`/authors/${post.data.author.name}`}>{post.data.author}</a>{" "}
+            - {post.data.date}
           </li>
         ))}
       </ul>
