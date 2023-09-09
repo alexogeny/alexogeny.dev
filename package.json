@@ -1,6 +1,7 @@
 {
   "name": "alexogeny.dev",
   "devDependencies": {
+    "@astrojs/netlify": "^3.0.1",
     "astro": "^3.0.12",
     "autoprefixer": "^10.4.15",
     "bun-types": "latest",
