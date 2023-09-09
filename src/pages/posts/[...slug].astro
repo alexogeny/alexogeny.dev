@@ -22,11 +22,15 @@ if (slug === undefined) {
   slug ? (
     <BaseLayout title={entry.data.title}>
       <article>
-        <h1>{entry.data.title}</h1>
-        <p>
-          By {author.data.name} on {entry.data.date}
+        <h1 class="text-5xl mb-5 text-center">{entry.data.title}</h1>
+        <p class="text-center mb-1">
+          by{" "}
+          <a class="link link-primary" href={`/author/${author.data.name}`}>
+            {author.data.name}
+          </a>{" "}
+          on {entry.data.date}
         </p>
-        <p>{remarkPluginFrontmatter.minutesRead}</p>
+        <p class="text-center mb-1">{remarkPluginFrontmatter.minutesRead}</p>
         <Content />
       </article>
     </BaseLayout>
