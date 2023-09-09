@@ -3,7 +3,7 @@ import { getCollection, getEntry } from "astro:content";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 
 const { slug } = Astro.params;
-let posts, entry, Content, author;
+let posts, entry, Content, remarkPluginFrontmatter, author;
 if (slug === undefined) {
   posts = await getCollection("posts", (post) => {
     return post.data.draft !== true;
@@ -13,7 +13,7 @@ if (slug === undefined) {
   if (entry === undefined) {
     return Astro.redirect("/404");
   }
-  ({ Content } = await entry.render());
+  ({ Content, remarkPluginFrontmatter } = await entry.render());
   author = await getEntry(entry.data.author);
 }
 ---
@@ -26,6 +26,7 @@ if (slug === undefined) {
         <p>
           By {author.data.name} on {entry.data.date}
         </p>
+        <p>{remarkPluginFrontmatter.minutesRead}</p>
         <Content />
       </article>
     </BaseLayout>
