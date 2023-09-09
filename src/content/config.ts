@@ -22,8 +22,10 @@ const authors = defineCollection({
     name: z.string(),
     avatar: z.string(),
     bio: z.string(),
-    twitter: z.string(),
-    github: z.string(),
+    socials: z.array(z.object({
+      name: z.string(),
+      url: z.string(),
+    })),
     website: z.string(),
   }),
 })

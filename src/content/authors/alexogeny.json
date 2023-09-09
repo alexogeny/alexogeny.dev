@@ -2,7 +2,15 @@
   "name": "alexogeny",
   "avatar": "https://avatars.githubusercontent.com/u/6896115?v=4",
   "bio": "ev software dev in the streets, tv & game nerd in the sheets. too much coffee, never enough sleep.",
-  "twitter": "alexogeny",
-  "github": "alexogeny",
+  "socials": [
+    {
+      "name": "twitter",
+      "url": "https://twitter.com/alexogeny"
+    },
+    {
+      "name": "github",
+      "url": "https://github.com/alexogeny"
+    }
+  ],
   "website": "alexogeny.dev"
 }

@@ -1,7 +1,43 @@
 ---
-import BaseLayout from '../layouts/BaseLayout.astro';
+import { getEntry } from "astro:content";
+import BaseLayout from "../layouts/BaseLayout.astro";
+
+const author = await getEntry("authors", "alexogeny");
 ---
 
 <BaseLayout title="Page Title">
-  First commit bootstrapping astro with bun
+  <div class="text-center">
+    <img
+      class="rounded-full w-36 h-36 mx-auto"
+      src="https://avatars.githubusercontent.com/u/6896115?v=4"
+      alt="alexogeny's avatar"
+    />
+    <p class="mb-2 mt-2">{author.data.name}</p>
+    <p class="mb-2">{author.data.bio}</p>
+    <div class="mt-2">
+      {
+        author.data.socials.map((social) => (
+          <a
+            class="mr-4 link link-primary"
+            href={social.url}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {social.name}
+          </a>
+        ))
+      }
+    </div>
+    <div class="mt-4">
+      i write a lot of code, and i sometimes also write about writing code,
+      among other things. you can check out my writing <a
+        class="link link-primary"
+        href="/posts">here</a
+      >.
+    </div>
+    <div class="mt-4">for contact, feel free to @ me on twitter.</div>
+    <div class="mt-4">
+      this site is a gigantic work in progress. please pardon the dust.
+    </div>
+  </div>
 </BaseLayout>
