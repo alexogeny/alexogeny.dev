@@ -1,0 +1,53 @@
+---
+publishDate: 2023-09-12T10:31:00Z
+title: Thoughts On Testing
+excerpt: Don't be afraid to test, but don't be afraid to not test either.
+image: https://images.pexels.com/photos/4601056/pexels-photo-4601056.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1
+category: Commentary
+tags:
+  - testing
+  - software
+  - thoughts
+metadata:
+  canonical: https://alexogeny.dev/2023-09-12-thoughts-on-testing
+---
+
+As much as we sometimes dread it, testing is the unsung hero that ensures our code performs as expected and our applications run smoothly. The piece you're about to read is a culmination of my experiences and reflections on this essential practice. It's not an exhaustive guide, but rather a sharing of insights that I've gathered along the way. I hope it helps you navigate the intricacies of testing as you continue to build robust and reliable software.
+
+## The Elegance of Functional Code
+
+Imagine writing a piece of code that calculates the area of a rectangle. The function takes two parameters—length and width—and returns the calculated area. Simple, focused, and functional. This is a function you can easily write a test case for, a function that will yield to your testing frameworks without resistance. The more we channel our coding energy into producing functional, single-responsibility pieces, the smoother our testing path becomes. By narrowing the scope of each function, you turn your codebase into an open book that can be easily reviewed, modified, and yes, tested.
+
+## The Patching Paradox
+
+It's a Wednesday afternoon, and you're staring at your screen trying to work with an external API that pulls weather data. Testing this in real-time would be impractical, to say the least. So you opt for patching the method that makes the API call to return a fixed response. This is a wise compromise, allowing you to focus on your own code while putting a pin on external variables.
+
+But beware the allure of over-mocking. The moment you find yourself mocking an entire class, your tests enter dangerous territory. You're no longer testing your interaction with that class; you're testing your mock. It’s like rehearsing for a dance but replacing your partner with a mannequin—useful for some things, but hardly a real-world trial.
+
+## Environment of Disaster
+
+Imagine building a login module that tests against actual database credentials loaded from environment variables. The day those credentials change, your test is obsolete. The lesson? A test that depends on environment variables is a test waiting to fail. Keep your tests in a controlled, predictable environment. Tests should be timeless—a result that can be counted on today, tomorrow, and a year from now.
+
+## Infra: Drawing Lines in The Sand
+
+Consider your application interacts with a PostgreSQL database. To mock this in a unit test is to strip away its essence, to ignore the intricacies of SQL execution times, data retrieval, and more. This is not the place for mocks; it's an abstraction too far.
+
+## The Real World
+
+So where does infrastructure testing belong? In a realm where the whole system is on trial, where every component works in concert, as it would in the real world—End-to-End (E2E) testing. It's your fail-safe before launching that new feature or rolling out that critical update.
+
+## Automated Assurance
+
+Your code is written, your tests are complete, and you’re ready to deploy. The final seal of approval? Automated tests that run as part of your Continuous Integration pipeline. This isn't just best practice—it's a lifeline that protects your code from accidental lapses and oversights. Trusting a developer to remember to run tests is like trusting someone to never forget their keys. We're all human; we err. Automation acts as your safety net, ensuring that tests are an integral part of your development cycle, not a manual afterthought.
+
+## Coverage of Lies
+
+Some may argue that 100% test coverage is the holy grail of testing. But is it? What if you have a function that returns a random number? How do you test that? You can't. And that's okay. The goal of testing is to ensure your code is reliable, not to achieve a perfect score. So don't get hung up on coverage. Instead, focus on the quality of your tests. Are they testing the right things? Are they testing the right way? Are they testing the right amount? These are the questions that matter.
+
+## Don't Be Afraid
+
+Testing is a powerful tool that can help you build better software. But it's also a tool that can be misused. Don't be afraid to test, but don't be afraid to not test either. There's a time and place for everything. The key is to know when to test and when not to test. And that comes with experience. There's no magic formula, no silver bullet. Just a lot of trial and error.
+
+## Closing Thoughts
+
+Testing is a journey, not a destination. It's a process that evolves with your codebase, your team, and your company. So don't be afraid to experiment, to try new things, to fail. The more you test, the more you learn. And the more you learn, the better you become. So keep testing, keep learning, and keep building great software.
