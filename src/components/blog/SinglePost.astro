@@ -1,12 +1,7 @@
 ---
-import { Icon } from 'astro-icon/components';
-
 import Image from '~/components/common/Image.astro';
 import PostTags from '~/components/blog/Tags.astro';
 import SocialShare from '~/components/common/SocialShare.astro';
-
-import { getPermalink } from '~/utils/permalinks';
-import { getFormattedDate } from '~/utils/utils';
 
 import type { Post } from '~/types';
 
@@ -17,28 +12,25 @@ export interface Props {
 
 const { post, url } = Astro.props;
 const { Content } = post;
+
+const contextualDetails = [
+  post.category ? post.category.replaceAll('-', ' ') : undefined,
+  post.readingTime ? `${Math.max(1, Math.round(post.readingTime))} min read` : undefined,
+]
+  .filter(Boolean)
+  .join(' · ');
 ---
 
 <section class="py-8 sm:py-16 lg:py-20 mx-auto">
   <article>
     <header class={post.image ? '' : ''}>
       <div class="flex justify-between flex-col sm:flex-row max-w-3xl mx-auto mt-0 mb-2 px-4 sm:px-6 sm:items-center">
-        <p>
-          <Icon name="tabler:clock" class="w-4 h-4 inline-block -mt-0.5 dark:text-gray-400" />
-          <time datetime={String(post.publishDate)} class="inline-block">{getFormattedDate(post.publishDate)}</time>
-          {
-            post.category && (
-              <>
-                {' '}
-                ·{' '}
-                <a class="capitalize hover:underline inline-block" href={getPermalink(post.category, 'category')}>
-                  {post.category.replaceAll('-', ' ')}
-                </a>
-              </>
-            )
-          }
-          {post.readingTime && <> · {post.readingTime} min read</>}
+        <p class="text-xs font-semibold uppercase tracking-[0.35em] text-slate-500 dark:text-slate-400">
+          Fictional field record
         </p>
+        {contextualDetails && (
+          <p class="mt-2 text-sm text-slate-500 dark:text-slate-400 sm:mt-0">{contextualDetails}</p>
+        )}
       </div>
       <h1
         class="px-4 sm:px-6 max-w-3xl mx-auto text-4xl md:text-5xl font-bold leading-tighter tracking-tighter font-heading"
@@ -79,7 +71,7 @@ const { Content } = post;
         Content ? (
           <Content />
         ) : (
-          <Fragment set:html={post.content || ""} />
+          <Fragment set:html={post.content || ''} />
         )
       }
     </div>

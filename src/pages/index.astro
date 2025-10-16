@@ -3,60 +3,59 @@ import Layout from "~/layouts/PageLayout.astro";
 
 const metadata = {
   title: "Alex Mack — alexogeny.dev",
-  description:
-    "A personal snapshot of what I'm tinkering with, listening to, and learning right now.",
+  description: "A timeless fieldstage where imagined projects, gentle systems, and speculative maintenance coexist.",
 };
 
-const nowList = [
+const orientationList = [
   {
     label: "Working on",
     value:
-      "quiet tools for electric mobility teams — interface trim, data gardening, and keeping crews unblocked.",
+      "quiet, fictional tools for electric mobility crews — interface sketches, data gardens, and rituals that feel like they were always there.",
   },
-  { label: "Based in", value: "Brisbane, Yuggera & Turrbal Country" },
+  { label: "Based in", value: "Brisbane, Yuggera & Turrbal Country (and whichever liminal studio you're picturing)" },
   {
     label: "Listening",
-    value: "Cleo Sol's 'Nothing on Me' on loop while sketching UI states.",
+    value: "Cleo Sol's 'Nothing on Me' on loop while prototyping support portals that may or may not exist yet.",
   },
   {
     label: "Learning",
-    value: "how to make slow, patient software that keeps humans in the room.",
+    value: "how to keep software soft even when the story jumps timelines.",
   },
 ];
 
 const glimpses = [
   {
-    title: "Making infrastructure feel like a friend",
+    title: "Maintaining imaginary infrastructure",
     description:
-      "Guiding a small team through the messiness of EV fleet ops software — lots of operational empathy, ruthless pruning of alerts, and gentle automation where it helps real people sleep better.",
+      "Guiding a small team through speculative EV fleet ops — translating whispered incident notes into interfaces that read like folklore.",
   },
   {
-    title: "Caretaking old projects",
+    title: "Caretaking impossible archives",
     description:
-      "Keeping personal tools patched and breathable: a home server that hosts family archives, a weather station that texts when storms roll in, and a few tiny bots that remind friends to drink water.",
+      "Keeping personal tools patched and breathable: a home server that hosts generational memories, a weather station that texts before storms form, bots that remind friends in alternate timelines to drink water.",
   },
   {
-    title: "Writing when the light is right",
+    title: "Writing in borrowed light",
     description:
-      "Drafting essays about maintenance, calm engineering teams, and the weird intersections of music theory and incident response.",
+      "Drafting essays about maintenance, calm engineering teams, and the chords that tie incident response to music theory — all of it true, even if it didn't happen.",
   },
 ];
 
 const logbook = [
   {
-    date: "July 2024",
+    title: "Telemetry rewritten as folklore",
     entry:
-      "Rebuilt our telemetry ingestion to speak in stories instead of graphs — operators finally have a timeline they can annotate and trust.",
+      "Rebuilt our monitoring pipeline so every event arrives as a story beat. Operators annotate like dramaturgs and finally trust the timeline, even when the system is fictional.",
   },
   {
-    date: "May 2024",
+    title: "Pipeline calm in a parallel shop",
     entry:
-      "Helped an energy startup untangle their deployment pipeline with a weekend of humane defaults and better docs.",
+      "Helped an energy startup you've never heard of untangle their deploy rituals. Humane defaults, better docs, and a shared sigh of relief across realities.",
   },
   {
-    date: "January 2024",
+    title: "Archiving rituals at home",
     entry:
-      "Spent evenings digitising family Super 8 footage and teaching my niece how checksum workflows work.",
+      "Spent evenings digitising family Super 8 footage and teaching my niece how checksum workflows work. Maybe it was last week, maybe it was a decade ago. The care feels the same.",
   },
 ];
 ---
@@ -69,7 +68,7 @@ const logbook = [
           alexogeny.dev
         </a>
         <nav class="hidden gap-6 text-sm font-medium text-slate-200/90 backdrop-blur sm:flex">
-          <a href="#now" class="transition hover:text-white">Now</a>
+          <a href="#orientation" class="transition hover:text-white">Orientation</a>
           <a href="#glimpses" class="transition hover:text-white">Glimpses</a>
           <a href="#logbook" class="transition hover:text-white">Logbook</a>
           <a href="/about" class="transition hover:text-white">About</a>
@@ -85,14 +84,14 @@ const logbook = [
       <div class="absolute bottom-0 left-12 h-32 w-32 rounded-full bg-emerald-400/30 blur-3xl"></div>
     </div>
     <div class="mx-auto flex max-w-5xl flex-col gap-16 px-6 pb-24 pt-32 sm:pb-32 sm:pt-40">
-      <p class="text-xs uppercase tracking-[0.45em] text-slate-300/80">Moment in time · Updated July 2024</p>
+      <p class="text-xs uppercase tracking-[0.45em] text-slate-300/80">Perennial signal — alexogeny.dev</p>
       <div class="space-y-8 sm:max-w-3xl">
         <h1 class="text-4xl font-semibold tracking-tight sm:text-5xl md:text-6xl">
-          Hello, I'm Alex — an engineer keeping the lights soft and the systems kind.
+          Hello, I'm Alex — a caretaker of systems that might exist just outside your frame.
         </h1>
         <p class="text-lg leading-relaxed text-slate-300">
-          This page is my little weather report. It's not a manifesto or a sales pitch — just a snapshot of what I'm tending to,
-          what I'm paying attention to, and the experiments that are keeping me curious this season.
+          This site is a stage set and a weather report. Everything you read is rooted in the work I do, even when the details
+          drift into fiction. Take what resonates, leave what doesn't, and assume the experiments are still unfolding somewhere.
         </p>
       </div>
       <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
@@ -114,22 +113,21 @@ const logbook = [
     </div>
   </section>
 
-  <section id="now" class="border-y border-slate-200/50 bg-slate-50 py-20 text-slate-900 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100">
+  <section id="orientation" class="border-y border-slate-200/50 bg-slate-50 py-20 text-slate-900 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100">
     <div class="mx-auto grid max-w-5xl gap-12 px-6 sm:grid-cols-[1.2fr_1fr] sm:items-start">
       <div class="space-y-6">
-        <h2 class="text-sm font-semibold uppercase tracking-[0.35em] text-slate-700 dark:text-slate-300">Right now</h2>
+        <h2 class="text-sm font-semibold uppercase tracking-[0.35em] text-slate-700 dark:text-slate-300">Orientation</h2>
         <p class="text-3xl font-semibold tracking-tight sm:text-4xl">
-          I'm making space for thoughtful software, good documentation, and teams that take care of each other.
+          I'm making space for thoughtful software, good documentation, and teams that take care of each other — even in imagined timelines.
         </p>
         <p class="text-base leading-relaxed text-slate-600 dark:text-slate-300">
-          Most of my days are spent pairing with operators, tending data models, and sketching interfaces that feel familiar to
-          the people who depend on them. Nights are for music, archival rabbit holes, and a rotating roster of tinkering
-          projects.
+          Most days I'm pairing with operators, tending data models, and sketching interfaces that feel familiar to the people
+          who depend on them. The fiction just lets me stretch those instincts, so the lessons stay portable.
         </p>
       </div>
       <div class="rounded-3xl border border-slate-200 bg-white/70 p-8 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-900/70">
         <dl class="space-y-6">
-          {nowList.map(({ label, value }) => (
+          {orientationList.map(({ label, value }) => (
             <div class="grid gap-2" key={label}>
               <dt class="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400">{label}</dt>
               <dd class="text-base leading-relaxed text-slate-700 dark:text-slate-200">{value}</dd>
@@ -144,10 +142,10 @@ const logbook = [
     <div class="mx-auto flex max-w-5xl flex-col gap-12 px-6">
       <div class="space-y-4 sm:max-w-2xl">
         <h2 class="text-sm font-semibold uppercase tracking-[0.35em] text-slate-700 dark:text-slate-300">Glimpses</h2>
-        <p class="text-3xl font-semibold tracking-tight sm:text-4xl">Little projects and threads I'm following.</p>
+        <p class="text-3xl font-semibold tracking-tight sm:text-4xl">Little projects and threads from possible presents.</p>
         <p class="text-base leading-relaxed text-slate-600 dark:text-slate-300">
-          These are the things occupying headspace lately. Some are paid work, some are for friends, some are just to see what
-          happens when curiosity wins.
+          These vignettes occupy headspace. Some are paid work, some belong to friends, some are just to see what happens when
+          curiosity wins in a different timeline.
         </p>
       </div>
       <div class="grid gap-10 md:grid-cols-3">
@@ -170,26 +168,26 @@ const logbook = [
     <div class="mx-auto flex max-w-5xl flex-col gap-10 px-6">
       <div class="space-y-4 sm:max-w-2xl">
         <h2 class="text-sm font-semibold uppercase tracking-[0.35em] text-slate-700 dark:text-slate-300">Logbook</h2>
-        <p class="text-3xl font-semibold tracking-tight sm:text-4xl">Recent moments I'm keeping close.</p>
+        <p class="text-3xl font-semibold tracking-tight sm:text-4xl">Stories I'm rehearsing.</p>
         <p class="text-base leading-relaxed text-slate-600 dark:text-slate-300">
-          I'm not maintaining a traditional blog right now. Instead, I drop notes here when something shifts the way I think about
-          work, tools, or community.
+          I don't maintain a traditional blog. Instead, I pin down fragments here when something shifts how I think about work,
+          tools, or community — whether or not it happened exactly this way.
         </p>
       </div>
       <div class="space-y-6">
-        {logbook.map(({ date, entry }) => (
+        {logbook.map(({ title, entry }) => (
           <div
             class="rounded-3xl border border-slate-200 bg-white/70 p-6 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-900/60"
-            key={date}
+            key={title}
           >
-            <div class="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400">{date}</div>
+            <div class="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400">{title}</div>
             <p class="mt-3 text-base leading-relaxed text-slate-700 dark:text-slate-200">{entry}</p>
           </div>
         ))}
       </div>
       <div class="pt-4 text-sm text-slate-500 dark:text-slate-400">
         Want a longer read? There's an <a href="/about" class="underline decoration-slate-400 underline-offset-4 transition hover:text-slate-700 dark:hover:text-slate-200">about page</a>
-        and an occasionally updated <a href="/blog" class="underline decoration-slate-400 underline-offset-4 transition hover:text-slate-700 dark:hover:text-slate-200">blog archive</a>.
+        and an intentionally timeless <a href="/blog" class="underline decoration-slate-400 underline-offset-4 transition hover:text-slate-700 dark:hover:text-slate-200">logbook archive</a>.
       </div>
     </div>
   </section>

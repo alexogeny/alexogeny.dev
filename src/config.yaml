@@ -38,7 +38,7 @@ apps:
 
     post:
       isEnabled: true
-      permalink: '/%year%-%month%-%day%-%slug%' # Variables: %slug%, %year%, %month%, %day%, %hour%, %minute%, %second%, %category%
+      permalink: '/blog/%slug%' # Variables: %slug%, %year%, %month%, %day%, %hour%, %minute%, %second%, %category%
       robots:
         index: true
 
