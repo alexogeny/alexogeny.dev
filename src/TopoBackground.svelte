@@ -3,6 +3,10 @@
 
   export let offsetX = 0;
   export let offsetY = 0;
+  export let trailProgress = 0; // 0-1 progress along current trail
+  export let trailFrom = null;  // {x, y} start point
+  export let trailTo = null;    // {x, y} end point
+  export let waypoints = {};    // All page waypoints for drawing trails
 
   let canvas;
   let ctx;
@@ -84,10 +88,10 @@
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, w, h);
 
-    // Larger scale = fewer, more spread out contours
-    const scale = 0.002;
-    const levels = 12;
-    const step = 8;
+    // Balanced terrain density
+    const scale = 0.0035;
+    const levels = 16;
+    const step = 6;
     const cols = Math.ceil(w / step) + 1;
     const rows = Math.ceil(h / step) + 1;
 
@@ -158,6 +162,85 @@
       }
       ctx.stroke();
     }
+
+    // Helper to convert world coords to screen coords
+    const centerX = w / 2;
+    const centerY = h / 2;
+    function worldToScreen(wx, wy) {
+      return {
+        x: centerX + (wx - offsetX) * 0.15,
+        y: centerY + (wy - offsetY) * 0.15
+      };
+    }
+
+    // Draw trail paths from home to each destination
+    if (waypoints && Object.keys(waypoints).length > 0) {
+      const home = waypoints.home || { x: 0, y: 0 };
+
+      ctx.setLineDash([8, 12]);
+      ctx.lineDashOffset = 0;
+
+      for (const [name, coords] of Object.entries(waypoints)) {
+        if (name === 'home') continue;
+
+        const start = worldToScreen(home.x, home.y);
+        const end = worldToScreen(coords.x, coords.y);
+
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(start.x, start.y);
+        ctx.lineTo(end.x, end.y);
+        ctx.stroke();
+
+        // Draw destination marker
+        ctx.fillStyle = '#444';
+        ctx.beginPath();
+        ctx.arc(end.x, end.y, 4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.setLineDash([]);
+
+      // Draw home marker
+      const homeScreen = worldToScreen(home.x, home.y);
+      ctx.fillStyle = '#555';
+      ctx.beginPath();
+      ctx.arc(homeScreen.x, homeScreen.y, 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Draw animated trail marker during navigation
+    if (trailFrom && trailTo && trailProgress > 0 && trailProgress < 1) {
+      const start = worldToScreen(trailFrom.x, trailFrom.y);
+      const end = worldToScreen(trailTo.x, trailTo.y);
+
+      // Current marker position
+      const markerX = start.x + (end.x - start.x) * trailProgress;
+      const markerY = start.y + (end.y - start.y) * trailProgress;
+
+      // Draw trail behind marker (traveled path)
+      ctx.strokeStyle = '#666';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.moveTo(start.x, start.y);
+      ctx.lineTo(markerX, markerY);
+      ctx.stroke();
+
+      // Draw the moving marker
+      ctx.fillStyle = '#888';
+      ctx.beginPath();
+      ctx.arc(markerX, markerY, 6, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Glow effect
+      ctx.strokeStyle = '#666';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(markerX, markerY, 10, 0, Math.PI * 2);
+      ctx.stroke();
+    }
   }
 
   onMount(() => {
@@ -175,8 +258,8 @@
     return () => window.removeEventListener('resize', handleResize);
   });
 
-  // Redraw when offset changes
-  $: if (ctx && noise) {
+  // Redraw when offset or trail changes
+  $: if (ctx && noise && (offsetX !== undefined || offsetY !== undefined || trailProgress !== undefined)) {
     draw();
   }
 </script>

@@ -19,6 +19,9 @@
 
   let offsetX = 0;
   let offsetY = 0;
+  let trailProgress = 0;
+  let trailFrom = null;
+  let trailTo = null;
 
   // Easing function for smooth animation
   function easeInOutCubic(t) {
@@ -26,13 +29,18 @@
   }
 
   function animateToPage(targetPage, duration = 3000) {
+    const startCoords = pageCoords[currentPage];
+    const endCoords = pageCoords[targetPage];
     const startX = offsetX;
     const startY = offsetY;
-    const endX = pageCoords[targetPage].x;
-    const endY = pageCoords[targetPage].y;
+    const endX = endCoords.x;
+    const endY = endCoords.y;
     const startTime = performance.now();
 
     isNavigating = true;
+    trailFrom = startCoords;
+    trailTo = endCoords;
+    trailProgress = 0;
 
     function step(currentTime) {
       const elapsed = currentTime - startTime;
@@ -41,12 +49,16 @@
 
       offsetX = startX + (endX - startX) * eased;
       offsetY = startY + (endY - startY) * eased;
+      trailProgress = progress;
 
       if (progress < 1) {
         requestAnimationFrame(step);
       } else {
         isNavigating = false;
         currentPage = targetPage;
+        trailProgress = 0;
+        trailFrom = null;
+        trailTo = null;
       }
     }
 
@@ -61,7 +73,14 @@
   const components = { home: Home, cv: CV, projects: Projects, contact: Contact };
 </script>
 
-<TopoBackground {offsetX} {offsetY} />
+<TopoBackground
+  {offsetX}
+  {offsetY}
+  {trailProgress}
+  {trailFrom}
+  {trailTo}
+  waypoints={pageCoords}
+/>
 
 <main>
   <div class="panel" class:navigating={isNavigating}>
