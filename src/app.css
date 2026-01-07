@@ -1,0 +1,36 @@
+:root {
+  --panel-bg: rgba(10, 10, 10, 0.85);
+  --panel-border: rgba(40, 40, 40, 0.6);
+  --text-primary: #e5e5e5;
+  --text-muted: #888888;
+  --text-accent: #555555;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #app {
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: #000;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 2rem;
+  overflow: hidden;
+}
+
+#app {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
