@@ -123,13 +123,14 @@
     const cols = Math.ceil(w / step) + 1;
     const rows = Math.ceil(h / step) + 1;
 
-    // Build height map with offset
+    // Build height map with offset (scaled to match trail movement)
+    const terrainPanScale = 0.04; // Match the worldToScreen scale
     const hmap = [];
     for (let j = 0; j < rows; j++) {
       hmap[j] = [];
       for (let i = 0; i < cols; i++) {
-        const worldX = (i * step + offsetX) * scale;
-        const worldY = (j * step + offsetY) * scale;
+        const worldX = (i * step + offsetX * terrainPanScale) * scale;
+        const worldY = (j * step + offsetY * terrainPanScale) * scale;
         hmap[j][i] = fbm(noise, worldX, worldY);
       }
     }
