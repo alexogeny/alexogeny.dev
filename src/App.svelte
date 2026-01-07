@@ -84,36 +84,29 @@
 
 <main>
   <div class="panel" class:navigating={isNavigating}>
-    {#if !isNavigating}
-      <svelte:component this={components[currentPage]} {navigate} />
+    <svelte:component this={components[currentPage]} {navigate} />
 
-      <nav class="trail-nav">
-        {#if currentPage === 'home'}
-          {#each pages.filter(p => p !== 'home') as page}
-            <button
-              class="trail-link"
-              on:click={() => navigate(page)}
-            >
-              <span class="trail-marker"></span>
-              {page === 'cv' ? 'CV' : page.charAt(0).toUpperCase() + page.slice(1)}
-            </button>
-          {/each}
-        {:else}
+    <nav class="trail-nav">
+      {#if currentPage === 'home'}
+        {#each pages.filter(p => p !== 'home') as page}
           <button
             class="trail-link"
-            on:click={() => navigate('home')}
+            on:click={() => navigate(page)}
           >
             <span class="trail-marker"></span>
-            ← Back to Home
+            {page === 'cv' ? 'CV' : page.charAt(0).toUpperCase() + page.slice(1)}
           </button>
-        {/if}
-      </nav>
-    {:else}
-      <div class="navigating-indicator">
-        <span class="walking-dot"></span>
-        Traversing the terrain...
-      </div>
-    {/if}
+        {/each}
+      {:else}
+        <button
+          class="trail-link"
+          on:click={() => navigate('home')}
+        >
+          <span class="trail-marker"></span>
+          ← Back to Home
+        </button>
+      {/if}
+    </nav>
   </div>
 </main>
 
@@ -133,35 +126,13 @@
     width: 100%;
     padding: 2.5rem;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-    min-height: 200px;
+    transition: transform 0.4s ease, opacity 0.4s ease;
   }
 
   .panel.navigating {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .navigating-indicator {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    color: var(--text-muted);
-    font-size: 0.875rem;
-    letter-spacing: 0.05em;
-  }
-
-  .walking-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--text-accent);
-    animation: pulse 1s ease-in-out infinite;
-  }
-
-  @keyframes pulse {
-    0%, 100% { opacity: 0.4; transform: scale(1); }
-    50% { opacity: 1; transform: scale(1.2); }
+    transform: scale(0.1);
+    opacity: 0;
+    pointer-events: none;
   }
 
   .trail-nav {
