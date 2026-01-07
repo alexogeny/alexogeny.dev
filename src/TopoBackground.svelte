@@ -1,17 +1,45 @@
 <script>
-  import { onMount } from 'svelte';
+  import { onMount, createEventDispatcher } from 'svelte';
 
   export let offsetX = 0;
   export let offsetY = 0;
-  export let trailProgress = 0; // 0-1 progress along current trail
-  export let trailFrom = null;  // {x, y} start point
-  export let trailTo = null;    // {x, y} end point
-  export let waypoints = {};    // All page waypoints for drawing trails
+  export let trailProgress = 0;
+  export let trailFrom = null;
+  export let trailTo = null;
+  export let waypoints = {};
+  export let exploreMode = false;
+  export let currentLocation = 'home';
+
+  const dispatch = createEventDispatcher();
 
   let canvas;
   let ctx;
   let noise;
-  let seed = 42; // Fixed seed for consistent map
+  let seed = 42;
+
+  // Pre-defined curved trail paths (control points for bezier curves)
+  const trailPaths = {
+    cv: [
+      { x: 0, y: 0 },
+      { x: 200, y: -100 },
+      { x: 400, y: 50 },
+      { x: 600, y: 200 },
+      { x: 800, y: 400 }
+    ],
+    projects: [
+      { x: 0, y: 0 },
+      { x: -150, y: 200 },
+      { x: -300, y: 350 },
+      { x: -500, y: 500 },
+      { x: -600, y: 700 }
+    ],
+    contact: [
+      { x: 0, y: 0 },
+      { x: 100, y: -150 },
+      { x: 250, y: -300 },
+      { x: 400, y: -500 }
+    ]
+  };
 
   // Perlin noise implementation
   function createNoise(s) {
@@ -168,78 +196,154 @@
     const centerY = h / 2;
     function worldToScreen(wx, wy) {
       return {
-        x: centerX + (wx - offsetX) * 0.15,
-        y: centerY + (wy - offsetY) * 0.15
+        x: centerX + (wx - offsetX) * 0.12,
+        y: centerY + (wy - offsetY) * 0.12
       };
     }
 
-    // Draw trail paths from home to each destination
-    if (waypoints && Object.keys(waypoints).length > 0) {
-      const home = waypoints.home || { x: 0, y: 0 };
+    // Draw curved trail paths
+    ctx.setLineDash([6, 10]);
+    for (const [name, path] of Object.entries(trailPaths)) {
+      if (path.length < 2) continue;
 
-      ctx.setLineDash([8, 12]);
-      ctx.lineDashOffset = 0;
+      ctx.strokeStyle = '#2a2a2a';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
 
-      for (const [name, coords] of Object.entries(waypoints)) {
-        if (name === 'home') continue;
+      const firstPt = worldToScreen(path[0].x, path[0].y);
+      ctx.moveTo(firstPt.x, firstPt.y);
 
-        const start = worldToScreen(home.x, home.y);
-        const end = worldToScreen(coords.x, coords.y);
-
-        ctx.strokeStyle = '#333';
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.moveTo(start.x, start.y);
-        ctx.lineTo(end.x, end.y);
-        ctx.stroke();
-
-        // Draw destination marker
-        ctx.fillStyle = '#444';
-        ctx.beginPath();
-        ctx.arc(end.x, end.y, 4, 0, Math.PI * 2);
-        ctx.fill();
+      // Draw smooth curve through points using quadratic bezier
+      for (let i = 1; i < path.length - 1; i++) {
+        const curr = worldToScreen(path[i].x, path[i].y);
+        const next = worldToScreen(path[i + 1].x, path[i + 1].y);
+        const midX = (curr.x + next.x) / 2;
+        const midY = (curr.y + next.y) / 2;
+        ctx.quadraticCurveTo(curr.x, curr.y, midX, midY);
       }
 
-      ctx.setLineDash([]);
+      // Final segment
+      const lastPt = worldToScreen(path[path.length - 1].x, path[path.length - 1].y);
+      ctx.lineTo(lastPt.x, lastPt.y);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
 
-      // Draw home marker
-      const homeScreen = worldToScreen(home.x, home.y);
-      ctx.fillStyle = '#555';
+    // Store marker positions for click detection
+    markerPositions = [];
+
+    // Draw waypoint markers
+    for (const [name, coords] of Object.entries(waypoints)) {
+      const screen = worldToScreen(coords.x, coords.y);
+      const isCurrentLocation = name === currentLocation;
+      const markerSize = isCurrentLocation ? 8 : 6;
+
+      // Store for click detection
+      markerPositions.push({ name, x: screen.x, y: screen.y, size: markerSize + 15 });
+
+      // Outer ring
+      ctx.strokeStyle = isCurrentLocation ? '#666' : '#444';
+      ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.arc(homeScreen.x, homeScreen.y, 5, 0, Math.PI * 2);
+      ctx.arc(screen.x, screen.y, markerSize + 4, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Inner dot
+      ctx.fillStyle = isCurrentLocation ? '#888' : '#555';
+      ctx.beginPath();
+      ctx.arc(screen.x, screen.y, markerSize, 0, Math.PI * 2);
       ctx.fill();
+
+      // Label (only in explore mode)
+      if (exploreMode) {
+        ctx.fillStyle = '#666';
+        ctx.font = '11px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        const label = name === 'home' ? 'Home' : name === 'cv' ? 'CV' : name.charAt(0).toUpperCase() + name.slice(1);
+        ctx.fillText(label, screen.x, screen.y + markerSize + 18);
+      }
     }
 
     // Draw animated trail marker during navigation
     if (trailFrom && trailTo && trailProgress > 0 && trailProgress < 1) {
-      const start = worldToScreen(trailFrom.x, trailFrom.y);
-      const end = worldToScreen(trailTo.x, trailTo.y);
+      // Find the path we're traversing
+      let activePath = null;
+      let reversed = false;
 
-      // Current marker position
-      const markerX = start.x + (end.x - start.x) * trailProgress;
-      const markerY = start.y + (end.y - start.y) * trailProgress;
+      for (const [name, path] of Object.entries(trailPaths)) {
+        const endCoords = waypoints[name];
+        if (trailTo.x === endCoords?.x && trailTo.y === endCoords?.y) {
+          activePath = path;
+          break;
+        }
+        if (trailFrom.x === endCoords?.x && trailFrom.y === endCoords?.y) {
+          activePath = path;
+          reversed = true;
+          break;
+        }
+      }
 
-      // Draw trail behind marker (traveled path)
-      ctx.strokeStyle = '#666';
-      ctx.lineWidth = 2;
-      ctx.setLineDash([]);
-      ctx.beginPath();
-      ctx.moveTo(start.x, start.y);
-      ctx.lineTo(markerX, markerY);
-      ctx.stroke();
+      if (activePath) {
+        // Interpolate along the curved path
+        const pathProgress = reversed ? 1 - trailProgress : trailProgress;
+        const totalSegments = activePath.length - 1;
+        const segmentFloat = pathProgress * totalSegments;
+        const segmentIndex = Math.min(Math.floor(segmentFloat), totalSegments - 1);
+        const segmentProgress = segmentFloat - segmentIndex;
 
-      // Draw the moving marker
-      ctx.fillStyle = '#888';
-      ctx.beginPath();
-      ctx.arc(markerX, markerY, 6, 0, Math.PI * 2);
-      ctx.fill();
+        const p1 = activePath[segmentIndex];
+        const p2 = activePath[segmentIndex + 1];
+        const markerWorld = {
+          x: p1.x + (p2.x - p1.x) * segmentProgress,
+          y: p1.y + (p2.y - p1.y) * segmentProgress
+        };
+        const marker = worldToScreen(markerWorld.x, markerWorld.y);
 
-      // Glow effect
-      ctx.strokeStyle = '#666';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(markerX, markerY, 10, 0, Math.PI * 2);
-      ctx.stroke();
+        // Draw traveled path
+        ctx.strokeStyle = '#555';
+        ctx.lineWidth = 3;
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        const startPt = worldToScreen(activePath[0].x, activePath[0].y);
+        ctx.moveTo(reversed ? marker.x : startPt.x, reversed ? marker.y : startPt.y);
+
+        for (let i = (reversed ? segmentIndex : 1); i <= (reversed ? activePath.length - 1 : segmentIndex); i++) {
+          const pt = worldToScreen(activePath[i].x, activePath[i].y);
+          ctx.lineTo(pt.x, pt.y);
+        }
+        if (!reversed) ctx.lineTo(marker.x, marker.y);
+        ctx.stroke();
+
+        // Moving marker
+        ctx.fillStyle = '#aaa';
+        ctx.beginPath();
+        ctx.arc(marker.x, marker.y, 8, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = '#888';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(marker.x, marker.y, 12, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+  }
+
+  let markerPositions = [];
+
+  function handleCanvasClick(e) {
+    if (!exploreMode) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    for (const marker of markerPositions) {
+      const dist = Math.sqrt((x - marker.x) ** 2 + (y - marker.y) ** 2);
+      if (dist < marker.size) {
+        dispatch('waypointClick', { name: marker.name });
+        return;
+      }
     }
   }
 
@@ -258,13 +362,18 @@
     return () => window.removeEventListener('resize', handleResize);
   });
 
-  // Redraw when offset or trail changes
-  $: if (ctx && noise && (offsetX !== undefined || offsetY !== undefined || trailProgress !== undefined)) {
+  // Redraw when any prop changes
+  $: if (ctx && noise) {
+    offsetX, offsetY, trailProgress, exploreMode, currentLocation;
     draw();
   }
 </script>
 
-<canvas bind:this={canvas}></canvas>
+<canvas
+  bind:this={canvas}
+  on:click={handleCanvasClick}
+  class:explore={exploreMode}
+></canvas>
 
 <style>
   canvas {
@@ -275,5 +384,14 @@
     height: 100vh;
     z-index: -1;
     pointer-events: none;
+  }
+
+  canvas.explore {
+    pointer-events: auto;
+    cursor: grab;
+  }
+
+  canvas.explore:active {
+    cursor: grabbing;
   }
 </style>
