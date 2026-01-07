@@ -1,5 +1,4 @@
 <script>
-  import { onMount } from 'svelte';
   import TopoBackground from './TopoBackground.svelte';
   import Home from './pages/Home.svelte';
   import CV from './pages/CV.svelte';
@@ -12,24 +11,19 @@
 
   const pageCoords = {
     home: { x: 0, y: 0 },
-    cv: { x: 800, y: 400 },
-    projects: { x: -600, y: 700 },
-    contact: { x: 400, y: -500 }
+    cv: { x: 3200, y: 1600 },
+    projects: { x: -2400, y: 2800 },
+    contact: { x: 1600, y: -2000 }
   };
 
-  // Pan bounds
-  const bounds = { minX: -800, maxX: 1000, minY: -700, maxY: 900 };
+  // Pan bounds - wide enough to explore
+  const bounds = { minX: -3000, maxX: 4000, minY: -2500, maxY: 3500 };
 
   let offsetX = 0;
   let offsetY = 0;
   let trailProgress = 0;
   let trailFrom = null;
   let trailTo = null;
-
-  // Drag state
-  let isDragging = false;
-  let dragStart = { x: 0, y: 0 };
-  let offsetStart = { x: 0, y: 0 };
 
   function easeInOutCubic(t) {
     return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
@@ -111,33 +105,11 @@
     }
   }
 
-  function handleMouseDown(e) {
-    if (!exploreMode) return;
-    isDragging = true;
-    dragStart = { x: e.clientX, y: e.clientY };
-    offsetStart = { x: offsetX, y: offsetY };
+  function handlePan(e) {
+    const { x, y } = e.detail;
+    offsetX = Math.max(bounds.minX, Math.min(bounds.maxX, x));
+    offsetY = Math.max(bounds.minY, Math.min(bounds.maxY, y));
   }
-
-  function handleMouseMove(e) {
-    if (!isDragging) return;
-    const dx = (e.clientX - dragStart.x) * 8;
-    const dy = (e.clientY - dragStart.y) * 8;
-    offsetX = Math.max(bounds.minX, Math.min(bounds.maxX, offsetStart.x - dx));
-    offsetY = Math.max(bounds.minY, Math.min(bounds.maxY, offsetStart.y - dy));
-  }
-
-  function handleMouseUp() {
-    isDragging = false;
-  }
-
-  onMount(() => {
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
-  });
 
   const components = { home: Home, cv: CV, projects: Projects, contact: Contact };
 </script>
@@ -152,7 +124,7 @@
   {exploreMode}
   currentLocation={currentPage}
   on:waypointClick={handleWaypointClick}
-  on:mousedown={handleMouseDown}
+  on:pan={handlePan}
 />
 
 <main>

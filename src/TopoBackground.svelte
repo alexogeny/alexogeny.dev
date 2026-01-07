@@ -17,27 +17,27 @@
   let noise;
   let seed = 42;
 
-  // Pre-defined curved trail paths (control points for bezier curves)
+  // Pre-defined curved trail paths - spread far apart so you need to explore
   const trailPaths = {
     cv: [
       { x: 0, y: 0 },
-      { x: 200, y: -100 },
-      { x: 400, y: 50 },
-      { x: 600, y: 200 },
-      { x: 800, y: 400 }
+      { x: 800, y: -400 },
+      { x: 1600, y: 200 },
+      { x: 2400, y: 800 },
+      { x: 3200, y: 1600 }
     ],
     projects: [
       { x: 0, y: 0 },
-      { x: -150, y: 200 },
-      { x: -300, y: 350 },
-      { x: -500, y: 500 },
-      { x: -600, y: 700 }
+      { x: -600, y: 800 },
+      { x: -1200, y: 1400 },
+      { x: -2000, y: 2000 },
+      { x: -2400, y: 2800 }
     ],
     contact: [
       { x: 0, y: 0 },
-      { x: 100, y: -150 },
-      { x: 250, y: -300 },
-      { x: 400, y: -500 }
+      { x: 400, y: -600 },
+      { x: 1000, y: -1200 },
+      { x: 1600, y: -2000 }
     ]
   };
 
@@ -330,9 +330,17 @@
   }
 
   let markerPositions = [];
+  let isDragging = false;
+  let dragStart = { x: 0, y: 0 };
+  let offsetAtDragStart = { x: 0, y: 0 };
 
   function handleCanvasClick(e) {
     if (!exploreMode) return;
+    // Don't trigger click if we just finished dragging
+    if (wasDragging) {
+      wasDragging = false;
+      return;
+    }
 
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
@@ -347,6 +355,36 @@
     }
   }
 
+  let wasDragging = false;
+
+  function handleMouseDown(e) {
+    if (!exploreMode) return;
+    isDragging = true;
+    wasDragging = false;
+    dragStart = { x: e.clientX, y: e.clientY };
+    offsetAtDragStart = { x: offsetX, y: offsetY };
+  }
+
+  function handleMouseMove(e) {
+    if (!isDragging) return;
+    const dx = e.clientX - dragStart.x;
+    const dy = e.clientY - dragStart.y;
+
+    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+      wasDragging = true;
+    }
+
+    // Multiply by a factor to make panning feel responsive
+    const newX = offsetAtDragStart.x - dx * 6;
+    const newY = offsetAtDragStart.y - dy * 6;
+
+    dispatch('pan', { x: newX, y: newY });
+  }
+
+  function handleMouseUp() {
+    isDragging = false;
+  }
+
   onMount(() => {
     ctx = canvas.getContext('2d');
     noise = createNoise(seed);
@@ -359,7 +397,14 @@
     };
 
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
   });
 
   // Redraw when any prop changes
@@ -372,6 +417,7 @@
 <canvas
   bind:this={canvas}
   on:click={handleCanvasClick}
+  on:mousedown={handleMouseDown}
   class:explore={exploreMode}
 ></canvas>
 
