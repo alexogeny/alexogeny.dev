@@ -5,267 +5,217 @@
  */
 ---
 
-<canvas id="topo-canvas" class="fixed inset-0 -z-10 h-full w-full"></canvas>
+<canvas id="topo-canvas"></canvas>
 
-<script>
-  class TopoBackground {
-    private canvas: HTMLCanvasElement;
-    private ctx: CanvasRenderingContext2D;
-    private width: number = 0;
-    private height: number = 0;
-    private seed: number;
-    private permutation: number[] = [];
+<style>
+  #topo-canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: -1;
+    pointer-events: none;
+  }
+</style>
 
-    constructor(canvas: HTMLCanvasElement) {
-      this.canvas = canvas;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) throw new Error('Could not get canvas context');
-      this.ctx = ctx;
-      this.seed = Math.random() * 10000;
-      this.initPermutation();
-      this.resize();
-      this.draw();
+<script is:inline>
+  (function() {
+    const canvas = document.getElementById('topo-canvas');
+    if (!canvas) return;
 
-      window.addEventListener('resize', () => {
-        this.resize();
-        this.draw();
-      });
-    }
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
-    private initPermutation(): void {
-      // Initialize permutation table for noise
-      const p = [];
-      for (let i = 0; i < 256; i++) p[i] = i;
+    const seed = Math.random() * 10000;
+    let permutation = [];
 
-      // Shuffle using seed
-      let n = 256;
-      let rng = this.mulberry32(this.seed);
-      while (n > 1) {
-        const k = Math.floor(rng() * n);
-        n--;
-        [p[n], p[k]] = [p[k], p[n]];
-      }
-
-      // Duplicate for overflow
-      this.permutation = [...p, ...p];
-    }
-
-    private mulberry32(seed: number): () => number {
-      return () => {
-        let t = seed += 0x6D2B79F5;
+    // Mulberry32 PRNG
+    function mulberry32(s) {
+      return function() {
+        let t = s += 0x6D2B79F5;
         t = Math.imul(t ^ t >>> 15, t | 1);
         t ^= t + Math.imul(t ^ t >>> 7, t | 61);
         return ((t ^ t >>> 14) >>> 0) / 4294967296;
       };
     }
 
-    private fade(t: number): number {
+    // Initialize permutation table
+    function initPermutation() {
+      const p = [];
+      for (let i = 0; i < 256; i++) p[i] = i;
+      let n = 256;
+      const rng = mulberry32(seed);
+      while (n > 1) {
+        const k = Math.floor(rng() * n);
+        n--;
+        [p[n], p[k]] = [p[k], p[n]];
+      }
+      permutation = [...p, ...p];
+    }
+
+    function fade(t) {
       return t * t * t * (t * (t * 6 - 15) + 10);
     }
 
-    private lerp(a: number, b: number, t: number): number {
+    function lerp(a, b, t) {
       return a + t * (b - a);
     }
 
-    private grad(hash: number, x: number, y: number): number {
+    function grad(hash, x, y) {
       const h = hash & 7;
       const u = h < 4 ? x : y;
       const v = h < 4 ? y : x;
       return ((h & 1) ? -u : u) + ((h & 2) ? -2 * v : 2 * v);
     }
 
-    private noise(x: number, y: number): number {
+    function noise(x, y) {
       const X = Math.floor(x) & 255;
       const Y = Math.floor(y) & 255;
-
       x -= Math.floor(x);
       y -= Math.floor(y);
-
-      const u = this.fade(x);
-      const v = this.fade(y);
-
-      const p = this.permutation;
-      const A = p[X] + Y;
-      const B = p[X + 1] + Y;
-
-      return this.lerp(
-        this.lerp(this.grad(p[A], x, y), this.grad(p[B], x - 1, y), u),
-        this.lerp(this.grad(p[A + 1], x, y - 1), this.grad(p[B + 1], x - 1, y - 1), u),
+      const u = fade(x);
+      const v = fade(y);
+      const A = permutation[X] + Y;
+      const B = permutation[X + 1] + Y;
+      return lerp(
+        lerp(grad(permutation[A], x, y), grad(permutation[B], x - 1, y), u),
+        lerp(grad(permutation[A + 1], x, y - 1), grad(permutation[B + 1], x - 1, y - 1), u),
         v
       );
     }
 
-    private fbm(x: number, y: number, octaves: number = 4): number {
-      let value = 0;
-      let amplitude = 1;
-      let frequency = 1;
-      let maxValue = 0;
-
+    function fbm(x, y, octaves) {
+      let value = 0, amplitude = 1, frequency = 1, maxValue = 0;
       for (let i = 0; i < octaves; i++) {
-        value += amplitude * this.noise(x * frequency, y * frequency);
+        value += amplitude * noise(x * frequency, y * frequency);
         maxValue += amplitude;
         amplitude *= 0.5;
         frequency *= 2;
       }
-
       return value / maxValue;
     }
 
-    private resize(): void {
-      const dpr = window.devicePixelRatio || 1;
-      this.width = window.innerWidth;
-      this.height = window.innerHeight;
-      this.canvas.width = this.width * dpr;
-      this.canvas.height = this.height * dpr;
-      this.canvas.style.width = `${this.width}px`;
-      this.canvas.style.height = `${this.height}px`;
-      this.ctx.scale(dpr, dpr);
-    }
-
-    private draw(): void {
-      // Clear with black background
-      this.ctx.fillStyle = '#000000';
-      this.ctx.fillRect(0, 0, this.width, this.height);
-
-      // Generate height map
-      const scale = 0.003;
-      const numContours = 20;
-      const resolution = 4; // Sample every N pixels for performance
-
-      // Create height data
-      const cols = Math.ceil(this.width / resolution) + 1;
-      const rows = Math.ceil(this.height / resolution) + 1;
-      const heights: number[][] = [];
-
-      for (let y = 0; y < rows; y++) {
-        heights[y] = [];
-        for (let x = 0; x < cols; x++) {
-          const px = x * resolution;
-          const py = y * resolution;
-          heights[y][x] = this.fbm(px * scale, py * scale, 5);
-        }
-      }
-
-      // Draw contour lines using marching squares
-      this.ctx.strokeStyle = '#1a1a1a';
-      this.ctx.lineWidth = 1;
-
-      for (let level = 0; level < numContours; level++) {
-        const threshold = (level / numContours) * 2 - 1;
-        this.drawContourLevel(heights, threshold, resolution, cols, rows);
-      }
-    }
-
-    private drawContourLevel(
-      heights: number[][],
-      threshold: number,
-      resolution: number,
-      cols: number,
-      rows: number
-    ): void {
-      this.ctx.beginPath();
-
-      for (let y = 0; y < rows - 1; y++) {
-        for (let x = 0; x < cols - 1; x++) {
-          const tl = heights[y][x];
-          const tr = heights[y][x + 1];
-          const br = heights[y + 1][x + 1];
-          const bl = heights[y + 1][x];
-
-          // Calculate cell case (marching squares)
-          let caseIndex = 0;
-          if (tl > threshold) caseIndex |= 1;
-          if (tr > threshold) caseIndex |= 2;
-          if (br > threshold) caseIndex |= 4;
-          if (bl > threshold) caseIndex |= 8;
-
-          // Skip empty cases
-          if (caseIndex === 0 || caseIndex === 15) continue;
-
-          const px = x * resolution;
-          const py = y * resolution;
-
-          // Interpolate edge crossings
-          const top = this.interpolate(tl, tr, threshold);
-          const right = this.interpolate(tr, br, threshold);
-          const bottom = this.interpolate(bl, br, threshold);
-          const left = this.interpolate(tl, bl, threshold);
-
-          // Draw line segments based on case
-          const points: [number, number][] = [];
-
-          switch (caseIndex) {
-            case 1: case 14:
-              points.push([px + top * resolution, py]);
-              points.push([px, py + left * resolution]);
-              break;
-            case 2: case 13:
-              points.push([px + top * resolution, py]);
-              points.push([px + resolution, py + right * resolution]);
-              break;
-            case 3: case 12:
-              points.push([px, py + left * resolution]);
-              points.push([px + resolution, py + right * resolution]);
-              break;
-            case 4: case 11:
-              points.push([px + resolution, py + right * resolution]);
-              points.push([px + bottom * resolution, py + resolution]);
-              break;
-            case 5:
-              points.push([px + top * resolution, py]);
-              points.push([px + resolution, py + right * resolution]);
-              this.ctx.moveTo(points[0][0], points[0][1]);
-              this.ctx.lineTo(points[1][0], points[1][1]);
-              points.length = 0;
-              points.push([px, py + left * resolution]);
-              points.push([px + bottom * resolution, py + resolution]);
-              break;
-            case 6: case 9:
-              points.push([px + top * resolution, py]);
-              points.push([px + bottom * resolution, py + resolution]);
-              break;
-            case 7: case 8:
-              points.push([px, py + left * resolution]);
-              points.push([px + bottom * resolution, py + resolution]);
-              break;
-            case 10:
-              points.push([px + top * resolution, py]);
-              points.push([px, py + left * resolution]);
-              this.ctx.moveTo(points[0][0], points[0][1]);
-              this.ctx.lineTo(points[1][0], points[1][1]);
-              points.length = 0;
-              points.push([px + resolution, py + right * resolution]);
-              points.push([px + bottom * resolution, py + resolution]);
-              break;
-          }
-
-          if (points.length === 2) {
-            this.ctx.moveTo(points[0][0], points[0][1]);
-            this.ctx.lineTo(points[1][0], points[1][1]);
-          }
-        }
-      }
-
-      this.ctx.stroke();
-    }
-
-    private interpolate(v1: number, v2: number, threshold: number): number {
+    function interpolate(v1, v2, threshold) {
       if (Math.abs(v2 - v1) < 0.0001) return 0.5;
       return (threshold - v1) / (v2 - v1);
     }
-  }
 
-  // Initialize on DOM ready
-  document.addEventListener('DOMContentLoaded', () => {
-    const canvas = document.getElementById('topo-canvas') as HTMLCanvasElement;
-    if (canvas) {
-      new TopoBackground(canvas);
+    function resize() {
+      const dpr = window.devicePixelRatio || 1;
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      canvas.style.width = w + 'px';
+      canvas.style.height = h + 'px';
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      return { w, h };
     }
-  });
 
-  // Also try to init immediately in case DOM is already loaded
-  const canvas = document.getElementById('topo-canvas') as HTMLCanvasElement;
-  if (canvas) {
-    new TopoBackground(canvas);
-  }
+    function draw() {
+      const { w, h } = resize();
+
+      // Black background
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, w, h);
+
+      const scale = 0.004;
+      const numContours = 25;
+      const resolution = 3;
+      const cols = Math.ceil(w / resolution) + 1;
+      const rows = Math.ceil(h / resolution) + 1;
+
+      // Generate height map
+      const heights = [];
+      for (let y = 0; y < rows; y++) {
+        heights[y] = [];
+        for (let x = 0; x < cols; x++) {
+          heights[y][x] = fbm(x * resolution * scale, y * resolution * scale, 5);
+        }
+      }
+
+      // Draw contours - make lines more visible
+      ctx.strokeStyle = '#333333';
+      ctx.lineWidth = 1;
+
+      for (let level = 0; level < numContours; level++) {
+        const threshold = (level / numContours) * 2 - 1;
+        ctx.beginPath();
+
+        for (let y = 0; y < rows - 1; y++) {
+          for (let x = 0; x < cols - 1; x++) {
+            const tl = heights[y][x];
+            const tr = heights[y][x + 1];
+            const br = heights[y + 1][x + 1];
+            const bl = heights[y + 1][x];
+
+            let caseIndex = 0;
+            if (tl > threshold) caseIndex |= 1;
+            if (tr > threshold) caseIndex |= 2;
+            if (br > threshold) caseIndex |= 4;
+            if (bl > threshold) caseIndex |= 8;
+
+            if (caseIndex === 0 || caseIndex === 15) continue;
+
+            const px = x * resolution;
+            const py = y * resolution;
+            const top = interpolate(tl, tr, threshold);
+            const right = interpolate(tr, br, threshold);
+            const bottom = interpolate(bl, br, threshold);
+            const left = interpolate(tl, bl, threshold);
+
+            let p1, p2;
+            switch (caseIndex) {
+              case 1: case 14:
+                p1 = [px + top * resolution, py];
+                p2 = [px, py + left * resolution];
+                break;
+              case 2: case 13:
+                p1 = [px + top * resolution, py];
+                p2 = [px + resolution, py + right * resolution];
+                break;
+              case 3: case 12:
+                p1 = [px, py + left * resolution];
+                p2 = [px + resolution, py + right * resolution];
+                break;
+              case 4: case 11:
+                p1 = [px + resolution, py + right * resolution];
+                p2 = [px + bottom * resolution, py + resolution];
+                break;
+              case 5:
+                ctx.moveTo(px + top * resolution, py);
+                ctx.lineTo(px + resolution, py + right * resolution);
+                p1 = [px, py + left * resolution];
+                p2 = [px + bottom * resolution, py + resolution];
+                break;
+              case 6: case 9:
+                p1 = [px + top * resolution, py];
+                p2 = [px + bottom * resolution, py + resolution];
+                break;
+              case 7: case 8:
+                p1 = [px, py + left * resolution];
+                p2 = [px + bottom * resolution, py + resolution];
+                break;
+              case 10:
+                ctx.moveTo(px + top * resolution, py);
+                ctx.lineTo(px, py + left * resolution);
+                p1 = [px + resolution, py + right * resolution];
+                p2 = [px + bottom * resolution, py + resolution];
+                break;
+            }
+            if (p1 && p2) {
+              ctx.moveTo(p1[0], p1[1]);
+              ctx.lineTo(p2[0], p2[1]);
+            }
+          }
+        }
+        ctx.stroke();
+      }
+    }
+
+    initPermutation();
+    draw();
+    window.addEventListener('resize', draw);
+  })();
 </script>
