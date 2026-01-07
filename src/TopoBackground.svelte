@@ -21,23 +21,23 @@
   const trailPaths = {
     cv: [
       { x: 0, y: 0 },
-      { x: 800, y: -400 },
-      { x: 1600, y: 200 },
-      { x: 2400, y: 800 },
-      { x: 3200, y: 1600 }
+      { x: 4000, y: -2000 },
+      { x: 8000, y: 1000 },
+      { x: 12000, y: 4000 },
+      { x: 16000, y: 8000 }
     ],
     projects: [
       { x: 0, y: 0 },
-      { x: -600, y: 800 },
-      { x: -1200, y: 1400 },
-      { x: -2000, y: 2000 },
-      { x: -2400, y: 2800 }
+      { x: -3000, y: 4000 },
+      { x: -6000, y: 7000 },
+      { x: -10000, y: 10000 },
+      { x: -12000, y: 14000 }
     ],
     contact: [
       { x: 0, y: 0 },
-      { x: 400, y: -600 },
-      { x: 1000, y: -1200 },
-      { x: 1600, y: -2000 }
+      { x: 2000, y: -3000 },
+      { x: 5000, y: -6000 },
+      { x: 8000, y: -10000 }
     ]
   };
 
@@ -196,8 +196,8 @@
     const centerY = h / 2;
     function worldToScreen(wx, wy) {
       return {
-        x: centerX + (wx - offsetX) * 0.12,
-        y: centerY + (wy - offsetY) * 0.12
+        x: centerX + (wx - offsetX) * 0.04,
+        y: centerY + (wy - offsetY) * 0.04
       };
     }
 
@@ -374,9 +374,9 @@
       wasDragging = true;
     }
 
-    // Multiply by a factor to make panning feel responsive
-    const newX = offsetAtDragStart.x - dx * 6;
-    const newY = offsetAtDragStart.y - dy * 6;
+    // Multiply by a factor to make panning feel responsive (large world needs fast pan)
+    const newX = offsetAtDragStart.x - dx * 25;
+    const newY = offsetAtDragStart.y - dy * 25;
 
     dispatch('pan', { x: newX, y: newY });
   }
@@ -428,13 +428,14 @@
     left: 0;
     width: 100vw;
     height: 100vh;
-    z-index: -1;
+    z-index: 0;
     pointer-events: none;
   }
 
   canvas.explore {
     pointer-events: auto;
     cursor: grab;
+    z-index: 10;
   }
 
   canvas.explore:active {

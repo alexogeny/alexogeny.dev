@@ -11,13 +11,13 @@
 
   const pageCoords = {
     home: { x: 0, y: 0 },
-    cv: { x: 3200, y: 1600 },
-    projects: { x: -2400, y: 2800 },
-    contact: { x: 1600, y: -2000 }
+    cv: { x: 16000, y: 8000 },
+    projects: { x: -12000, y: 14000 },
+    contact: { x: 8000, y: -10000 }
   };
 
-  // Pan bounds - wide enough to explore
-  const bounds = { minX: -3000, maxX: 4000, minY: -2500, maxY: 3500 };
+  // Pan bounds - wide enough to explore all waypoints
+  const bounds = { minX: -15000, maxX: 20000, minY: -12000, maxY: 16000 };
 
   let offsetX = 0;
   let offsetY = 0;
