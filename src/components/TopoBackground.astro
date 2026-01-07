@@ -1,0 +1,221 @@
+---
+/**
+ * Topographical map background component
+ * Generates random contour lines on a black background with dark gray lines
+ */
+---
+
+<canvas id="topo-canvas"></canvas>
+
+<style>
+  #topo-canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: -1;
+    pointer-events: none;
+  }
+</style>
+
+<script is:inline>
+  (function() {
+    const canvas = document.getElementById('topo-canvas');
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const seed = Math.random() * 10000;
+    let permutation = [];
+
+    // Mulberry32 PRNG
+    function mulberry32(s) {
+      return function() {
+        let t = s += 0x6D2B79F5;
+        t = Math.imul(t ^ t >>> 15, t | 1);
+        t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+      };
+    }
+
+    // Initialize permutation table
+    function initPermutation() {
+      const p = [];
+      for (let i = 0; i < 256; i++) p[i] = i;
+      let n = 256;
+      const rng = mulberry32(seed);
+      while (n > 1) {
+        const k = Math.floor(rng() * n);
+        n--;
+        [p[n], p[k]] = [p[k], p[n]];
+      }
+      permutation = [...p, ...p];
+    }
+
+    function fade(t) {
+      return t * t * t * (t * (t * 6 - 15) + 10);
+    }
+
+    function lerp(a, b, t) {
+      return a + t * (b - a);
+    }
+
+    function grad(hash, x, y) {
+      const h = hash & 7;
+      const u = h < 4 ? x : y;
+      const v = h < 4 ? y : x;
+      return ((h & 1) ? -u : u) + ((h & 2) ? -2 * v : 2 * v);
+    }
+
+    function noise(x, y) {
+      const X = Math.floor(x) & 255;
+      const Y = Math.floor(y) & 255;
+      x -= Math.floor(x);
+      y -= Math.floor(y);
+      const u = fade(x);
+      const v = fade(y);
+      const A = permutation[X] + Y;
+      const B = permutation[X + 1] + Y;
+      return lerp(
+        lerp(grad(permutation[A], x, y), grad(permutation[B], x - 1, y), u),
+        lerp(grad(permutation[A + 1], x, y - 1), grad(permutation[B + 1], x - 1, y - 1), u),
+        v
+      );
+    }
+
+    function fbm(x, y, octaves) {
+      let value = 0, amplitude = 1, frequency = 1, maxValue = 0;
+      for (let i = 0; i < octaves; i++) {
+        value += amplitude * noise(x * frequency, y * frequency);
+        maxValue += amplitude;
+        amplitude *= 0.5;
+        frequency *= 2;
+      }
+      return value / maxValue;
+    }
+
+    function interpolate(v1, v2, threshold) {
+      if (Math.abs(v2 - v1) < 0.0001) return 0.5;
+      return (threshold - v1) / (v2 - v1);
+    }
+
+    function resize() {
+      const dpr = window.devicePixelRatio || 1;
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      canvas.style.width = w + 'px';
+      canvas.style.height = h + 'px';
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      return { w, h };
+    }
+
+    function draw() {
+      const { w, h } = resize();
+
+      // Black background
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, w, h);
+
+      const scale = 0.004;
+      const numContours = 25;
+      const resolution = 3;
+      const cols = Math.ceil(w / resolution) + 1;
+      const rows = Math.ceil(h / resolution) + 1;
+
+      // Generate height map
+      const heights = [];
+      for (let y = 0; y < rows; y++) {
+        heights[y] = [];
+        for (let x = 0; x < cols; x++) {
+          heights[y][x] = fbm(x * resolution * scale, y * resolution * scale, 5);
+        }
+      }
+
+      // Draw contours - make lines more visible
+      ctx.strokeStyle = '#333333';
+      ctx.lineWidth = 1;
+
+      for (let level = 0; level < numContours; level++) {
+        const threshold = (level / numContours) * 2 - 1;
+        ctx.beginPath();
+
+        for (let y = 0; y < rows - 1; y++) {
+          for (let x = 0; x < cols - 1; x++) {
+            const tl = heights[y][x];
+            const tr = heights[y][x + 1];
+            const br = heights[y + 1][x + 1];
+            const bl = heights[y + 1][x];
+
+            let caseIndex = 0;
+            if (tl > threshold) caseIndex |= 1;
+            if (tr > threshold) caseIndex |= 2;
+            if (br > threshold) caseIndex |= 4;
+            if (bl > threshold) caseIndex |= 8;
+
+            if (caseIndex === 0 || caseIndex === 15) continue;
+
+            const px = x * resolution;
+            const py = y * resolution;
+            const top = interpolate(tl, tr, threshold);
+            const right = interpolate(tr, br, threshold);
+            const bottom = interpolate(bl, br, threshold);
+            const left = interpolate(tl, bl, threshold);
+
+            let p1, p2;
+            switch (caseIndex) {
+              case 1: case 14:
+                p1 = [px + top * resolution, py];
+                p2 = [px, py + left * resolution];
+                break;
+              case 2: case 13:
+                p1 = [px + top * resolution, py];
+                p2 = [px + resolution, py + right * resolution];
+                break;
+              case 3: case 12:
+                p1 = [px, py + left * resolution];
+                p2 = [px + resolution, py + right * resolution];
+                break;
+              case 4: case 11:
+                p1 = [px + resolution, py + right * resolution];
+                p2 = [px + bottom * resolution, py + resolution];
+                break;
+              case 5:
+                ctx.moveTo(px + top * resolution, py);
+                ctx.lineTo(px + resolution, py + right * resolution);
+                p1 = [px, py + left * resolution];
+                p2 = [px + bottom * resolution, py + resolution];
+                break;
+              case 6: case 9:
+                p1 = [px + top * resolution, py];
+                p2 = [px + bottom * resolution, py + resolution];
+                break;
+              case 7: case 8:
+                p1 = [px, py + left * resolution];
+                p2 = [px + bottom * resolution, py + resolution];
+                break;
+              case 10:
+                ctx.moveTo(px + top * resolution, py);
+                ctx.lineTo(px, py + left * resolution);
+                p1 = [px + resolution, py + right * resolution];
+                p2 = [px + bottom * resolution, py + resolution];
+                break;
+            }
+            if (p1 && p2) {
+              ctx.moveTo(p1[0], p1[1]);
+              ctx.lineTo(p2[0], p2[1]);
+            }
+          }
+        }
+        ctx.stroke();
+      }
+    }
+
+    initPermutation();
+    draw();
+    window.addEventListener('resize', draw);
+  })();
+</script>

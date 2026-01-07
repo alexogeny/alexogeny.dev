@@ -1,33 +1,25 @@
 ---
-import Layout from "~/layouts/Layout.astro";
-import { getHomePermalink } from "~/utils/permalinks";
+import PanelLayout from '~/layouts/PanelLayout.astro';
 
-const title = `Error 404`;
+const metadata = {
+  title: '404 — Page Not Found',
+  description: 'The page you are looking for does not exist.',
+};
 ---
 
-<Layout metadata={{ title }}>
-  <section class="flex items-center h-full p-16">
-    <div
-      class="container flex flex-col items-center justify-center px-5 mx-auto my-8"
+<PanelLayout metadata={metadata}>
+  <div class="panel text-center">
+    <p class="text-6xl font-semibold text-[var(--text-accent)] mb-4">404</p>
+    <h1 class="text-xl font-medium mb-4">Off the trail</h1>
+    <p class="text-sm text-[var(--text-muted)] mb-6">
+      This page doesn't exist. Maybe it never did.
+    </p>
+    <a
+      href="/"
+      class="inline-flex items-center gap-2 text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
     >
-      <div class="max-w-md text-center">
-        <h2 class="mb-8 font-bold text-9xl">
-          <span class="sr-only">not found</span>
-          <span class="text-primary">404</span>
-        </h2>
-        <p class="text-3xl font-semibold md:text-3xl">
-          hey, you've ventured off the grid. page not found, but let's not make
-          this a tragedy.
-        </p>
-        <p class="mt-4 mb-8 text-lg text-muted dark:text-slate-400">
-          time to hit the 'back' button like you'd hit 'undo' after deleting
-          that chunk of code you later realized was essential. live and learn,
-          right?
-        </p>
-        <a rel="noopener noreferrer" href={getHomePermalink()} class="btn ml-4"
-          >go back home</a
-        >
-      </div>
-    </div>
-  </section>
-</Layout>
+      <span>←</span>
+      <span>Back to base camp</span>
+    </a>
+  </div>
+</PanelLayout>

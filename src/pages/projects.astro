@@ -1,0 +1,73 @@
+---
+import PanelLayout from '~/layouts/PanelLayout.astro';
+
+const metadata = {
+  title: 'Projects — Alex Mack',
+  description: 'Personal projects and open source work.',
+};
+
+const projects = [
+  {
+    name: 'Fleet Telemetry Pipeline',
+    description: 'Rebuilt monitoring so every event arrives as a story beat. Operators annotate like dramaturgs.',
+    status: 'Active',
+  },
+  {
+    name: 'Home Server',
+    description: 'Personal infrastructure hosting generational memories and family archives.',
+    status: 'Maintained',
+  },
+  {
+    name: 'Weather Station',
+    description: 'A small device that texts before storms form. Quiet utility for the people around me.',
+    status: 'Running',
+  },
+  {
+    name: 'Open Source',
+    description: 'Various contributions to tools I depend on. Patches, docs, and the occasional feature.',
+    status: 'Ongoing',
+  },
+];
+---
+
+<PanelLayout metadata={metadata}>
+  <div class="panel">
+    <header class="mb-6">
+      <a href="/" class="text-xs uppercase tracking-[0.3em] text-[var(--text-accent)] hover:text-[var(--text-muted)] transition-colors mb-2 inline-block">
+        ← alexogeny.dev
+      </a>
+      <h1 class="text-2xl font-semibold tracking-tight">Projects</h1>
+    </header>
+
+    <div class="space-y-5">
+      {projects.map((project) => (
+        <div class="border-l border-[var(--panel-border)] pl-4">
+          <div class="flex items-baseline justify-between gap-4 mb-1">
+            <h3 class="text-sm font-medium">{project.name}</h3>
+            <span class="text-xs text-[var(--text-accent)]">{project.status}</span>
+          </div>
+          <p class="text-sm text-[var(--text-muted)] leading-relaxed">{project.description}</p>
+        </div>
+      ))}
+    </div>
+
+    <nav class="trail-nav">
+      <a href="/" class="trail-link">
+        <span class="trail-marker"></span>
+        Home
+      </a>
+      <a href="/cv" class="trail-link">
+        <span class="trail-marker"></span>
+        CV
+      </a>
+      <a href="/projects" class="trail-link active">
+        <span class="trail-marker"></span>
+        Projects
+      </a>
+      <a href="/contact" class="trail-link">
+        <span class="trail-marker"></span>
+        Contact
+      </a>
+    </nav>
+  </div>
+</PanelLayout>

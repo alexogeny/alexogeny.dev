@@ -1,78 +1,79 @@
 ---
-import Layout from '~/layouts/PageLayout.astro';
-import HeroText from '~/components/widgets/HeroText.astro';
-import ContactUs from '~/components/widgets/Contact.astro';
-import Features2 from '~/components/widgets/Features2.astro';
+import PanelLayout from '~/layouts/PanelLayout.astro';
 
 const metadata = {
-  title: 'Contact',
+  title: 'Contact — Alex Mack',
+  description: 'Get in touch.',
 };
+
+const links = [
+  {
+    label: 'Email',
+    value: 'hello@alexogeny.dev',
+    href: 'mailto:hello@alexogeny.dev',
+  },
+  {
+    label: 'GitHub',
+    value: 'github.com/alexogeny',
+    href: 'https://github.com/alexogeny',
+  },
+  {
+    label: 'X / Twitter',
+    value: '@alexogeny',
+    href: 'https://x.com/alexogeny',
+  },
+  {
+    label: 'Discord',
+    value: 'alexogeny',
+    href: 'https://discord.com/users/305879281580638228',
+  },
+];
 ---
 
-<Layout metadata={metadata}>
-  <!-- HeroText Widget ******************* -->
+<PanelLayout metadata={metadata}>
+  <div class="panel">
+    <header class="mb-6">
+      <a href="/" class="text-xs uppercase tracking-[0.3em] text-[var(--text-accent)] hover:text-[var(--text-muted)] transition-colors mb-2 inline-block">
+        ← alexogeny.dev
+      </a>
+      <h1 class="text-2xl font-semibold tracking-tight">Contact</h1>
+    </header>
 
-  <HeroText tagline="Contact" title="Let's Connect!" />
+    <p class="text-sm text-[var(--text-muted)] leading-relaxed mb-6">
+      Happy to hear from you. Whether it's about work, open source, or just to say hi.
+    </p>
 
-  <ContactUs
-    title="Drop us a message today!"
-    subtitle="For quicker answers, explore our FAQs section. You may find the solution you're looking  for right there! If not, our support team is delighted to help you."
-    inputs={[
-      {
-        type: 'text',
-        name: 'name',
-        label: 'Name',
-      },
-      {
-        type: 'email',
-        name: 'email',
-        label: 'Email',
-      },
-    ]}
-    textarea={{
-      label: 'Message',
-    }}
-    disclaimer={{
-      label:
-        'By submitting this contact form, you acknowledge and agree to the collection of your personal information.',
-    }}
-    description="Our support team typically responds within 24 business hours."
-  />
+    <div class="space-y-4">
+      {links.map((link) => (
+        <a
+          href={link.href}
+          target={link.href.startsWith('http') ? '_blank' : undefined}
+          rel={link.href.startsWith('http') ? 'noopener noreferrer' : undefined}
+          class="flex items-baseline justify-between border-l border-[var(--panel-border)] pl-4 py-1 hover:border-[var(--text-muted)] transition-colors group"
+        >
+          <span class="text-xs uppercase tracking-[0.15em] text-[var(--text-accent)]">{link.label}</span>
+          <span class="text-sm text-[var(--text-muted)] group-hover:text-[var(--text-primary)] transition-colors">{link.value}</span>
+        </a>
+      ))}
+    </div>
 
-  <!-- Features2 Widget ************** -->
-
-  <Features2
-    title="We are here to help!"
-    items={[
-      {
-        title: 'General support',
-        description: `Chat with us for inquiries related to account management, website navigation, payment issues, accessing purchased templates or general questions about the website's functionality.`,
-      },
-      {
-        title: 'Contact sales',
-        description:
-          'Chat with us for questions about purchases, customization options, licensing for commercial use, inquiries about specific template, etc.',
-      },
-      {
-        title: 'Technical support',
-        description:
-          'Chat with us when facing issues like template installation, problems editing difficulties, compatibility issues with software or download errors, or other technical challenges related to using the templates.',
-      },
-      {
-        title: 'Phone',
-        description: '+1 (234) 567-890',
-        icon: 'tabler:headset',
-      },
-      {
-        title: 'Email',
-        description: 'contact@support.com',
-        icon: 'tabler:mail',
-      },
-      {
-        title: 'Location',
-        description: '1234 Lorem Ipsum St, 12345, Miami, EEUU',
-        icon: 'tabler:map-pin',
-      },
-    ]}
-  />
-</Layout>
+    <nav class="trail-nav">
+      <a href="/" class="trail-link">
+        <span class="trail-marker"></span>
+        Home
+      </a>
+      <a href="/cv" class="trail-link">
+        <span class="trail-marker"></span>
+        CV
+      </a>
+      <a href="/projects" class="trail-link">
+        <span class="trail-marker"></span>
+        Projects
+      </a>
+      <a href="/contact" class="trail-link active">
+        <span class="trail-marker"></span>
+        Contact
+      </a>
+    </nav>
+  </div>
+</PanelLayout>
