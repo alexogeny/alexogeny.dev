@@ -1,212 +1,192 @@
 ---
 /**
  * Topographical map background component
- * Generates random contour lines on a black background with dark gray lines
+ * Generates random contour lines on a black background
  */
 ---
 
-<canvas id="topo-canvas"></canvas>
+<div id="topo-bg" aria-hidden="true">
+  <canvas id="topo-canvas"></canvas>
+</div>
 
-<style>
+<style is:global>
+  #topo-bg {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: -100 !important;
+    background: #000 !important;
+    pointer-events: none !important;
+  }
+
   #topo-canvas {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    z-index: -1;
-    pointer-events: none;
+    display: block;
+    width: 100%;
+    height: 100%;
   }
 </style>
 
 <script is:inline>
-  (function() {
-    const canvas = document.getElementById('topo-canvas');
-    if (!canvas) return;
+(function() {
+  var ready = false;
 
-    const ctx = canvas.getContext('2d');
+  function init() {
+    if (ready) return;
+
+    var canvas = document.getElementById('topo-canvas');
+    if (!canvas) {
+      requestAnimationFrame(init);
+      return;
+    }
+
+    var ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const seed = Math.random() * 10000;
-    let permutation = [];
+    ready = true;
+    var seed = Date.now() % 10000;
+    var perm = [];
 
-    // Mulberry32 PRNG
-    function mulberry32(s) {
+    // Simple seeded RNG
+    function rng(s) {
       return function() {
-        let t = s += 0x6D2B79F5;
-        t = Math.imul(t ^ t >>> 15, t | 1);
-        t ^= t + Math.imul(t ^ t >>> 7, t | 61);
-        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+        s = (s * 1103515245 + 12345) & 0x7fffffff;
+        return s / 0x7fffffff;
       };
     }
 
-    // Initialize permutation table
-    function initPermutation() {
-      const p = [];
-      for (let i = 0; i < 256; i++) p[i] = i;
-      let n = 256;
-      const rng = mulberry32(seed);
-      while (n > 1) {
-        const k = Math.floor(rng() * n);
-        n--;
-        [p[n], p[k]] = [p[k], p[n]];
+    function initPerm() {
+      var p = [], r = rng(seed), i, n, k, tmp;
+      for (i = 0; i < 256; i++) p[i] = i;
+      for (n = 255; n > 0; n--) {
+        k = Math.floor(r() * (n + 1));
+        tmp = p[n]; p[n] = p[k]; p[k] = tmp;
       }
-      permutation = [...p, ...p];
+      perm = p.concat(p);
     }
 
-    function fade(t) {
-      return t * t * t * (t * (t * 6 - 15) + 10);
-    }
+    function fade(t) { return t * t * t * (t * (t * 6 - 15) + 10); }
+    function lerp(a, b, t) { return a + t * (b - a); }
 
-    function lerp(a, b, t) {
-      return a + t * (b - a);
-    }
-
-    function grad(hash, x, y) {
-      const h = hash & 7;
-      const u = h < 4 ? x : y;
-      const v = h < 4 ? y : x;
-      return ((h & 1) ? -u : u) + ((h & 2) ? -2 * v : 2 * v);
+    function grad(h, x, y) {
+      switch (h & 3) {
+        case 0: return x + y;
+        case 1: return -x + y;
+        case 2: return x - y;
+        case 3: return -x - y;
+      }
+      return 0;
     }
 
     function noise(x, y) {
-      const X = Math.floor(x) & 255;
-      const Y = Math.floor(y) & 255;
-      x -= Math.floor(x);
-      y -= Math.floor(y);
-      const u = fade(x);
-      const v = fade(y);
-      const A = permutation[X] + Y;
-      const B = permutation[X + 1] + Y;
+      var xi = Math.floor(x) & 255;
+      var yi = Math.floor(y) & 255;
+      var xf = x - Math.floor(x);
+      var yf = y - Math.floor(y);
+      var u = fade(xf);
+      var v = fade(yf);
+      var aa = perm[perm[xi] + yi];
+      var ab = perm[perm[xi] + yi + 1];
+      var ba = perm[perm[xi + 1] + yi];
+      var bb = perm[perm[xi + 1] + yi + 1];
       return lerp(
-        lerp(grad(permutation[A], x, y), grad(permutation[B], x - 1, y), u),
-        lerp(grad(permutation[A + 1], x, y - 1), grad(permutation[B + 1], x - 1, y - 1), u),
+        lerp(grad(aa, xf, yf), grad(ba, xf - 1, yf), u),
+        lerp(grad(ab, xf, yf - 1), grad(bb, xf - 1, yf - 1), u),
         v
       );
     }
 
-    function fbm(x, y, octaves) {
-      let value = 0, amplitude = 1, frequency = 1, maxValue = 0;
-      for (let i = 0; i < octaves; i++) {
-        value += amplitude * noise(x * frequency, y * frequency);
-        maxValue += amplitude;
-        amplitude *= 0.5;
-        frequency *= 2;
+    function fbm(x, y) {
+      var val = 0, amp = 1, freq = 1, i;
+      for (i = 0; i < 4; i++) {
+        val += amp * noise(x * freq, y * freq);
+        amp *= 0.5;
+        freq *= 2;
       }
-      return value / maxValue;
+      return val;
     }
 
-    function interpolate(v1, v2, threshold) {
-      if (Math.abs(v2 - v1) < 0.0001) return 0.5;
-      return (threshold - v1) / (v2 - v1);
-    }
+    function draw() {
+      var w = window.innerWidth;
+      var h = window.innerHeight;
+      var dpr = Math.min(window.devicePixelRatio || 1, 2);
 
-    function resize() {
-      const dpr = window.devicePixelRatio || 1;
-      const w = window.innerWidth;
-      const h = window.innerHeight;
       canvas.width = w * dpr;
       canvas.height = h * dpr;
       canvas.style.width = w + 'px';
       canvas.style.height = h + 'px';
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      return { w, h };
-    }
-
-    function draw() {
-      const { w, h } = resize();
 
       // Black background
-      ctx.fillStyle = '#000000';
+      ctx.fillStyle = '#000';
       ctx.fillRect(0, 0, w, h);
 
-      const scale = 0.004;
-      const numContours = 25;
-      const resolution = 3;
-      const cols = Math.ceil(w / resolution) + 1;
-      const rows = Math.ceil(h / resolution) + 1;
+      var scale = 0.005;
+      var levels = 20;
+      var step = 5;
+      var cols = Math.ceil(w / step) + 1;
+      var rows = Math.ceil(h / step) + 1;
 
-      // Generate height map
-      const heights = [];
-      for (let y = 0; y < rows; y++) {
-        heights[y] = [];
-        for (let x = 0; x < cols; x++) {
-          heights[y][x] = fbm(x * resolution * scale, y * resolution * scale, 5);
+      // Build height map
+      var hmap = [];
+      for (var j = 0; j < rows; j++) {
+        hmap[j] = [];
+        for (var i = 0; i < cols; i++) {
+          hmap[j][i] = fbm(i * step * scale, j * step * scale);
         }
       }
 
-      // Draw contours - make lines more visible
-      ctx.strokeStyle = '#333333';
+      // Marching squares for contours
+      ctx.strokeStyle = '#383838';
       ctx.lineWidth = 1;
 
-      for (let level = 0; level < numContours; level++) {
-        const threshold = (level / numContours) * 2 - 1;
+      for (var lv = 0; lv < levels; lv++) {
+        var t = -0.8 + (lv / levels) * 1.6;
         ctx.beginPath();
 
-        for (let y = 0; y < rows - 1; y++) {
-          for (let x = 0; x < cols - 1; x++) {
-            const tl = heights[y][x];
-            const tr = heights[y][x + 1];
-            const br = heights[y + 1][x + 1];
-            const bl = heights[y + 1][x];
+        for (var y = 0; y < rows - 1; y++) {
+          for (var x = 0; x < cols - 1; x++) {
+            var nw = hmap[y][x] > t ? 1 : 0;
+            var ne = hmap[y][x + 1] > t ? 1 : 0;
+            var se = hmap[y + 1][x + 1] > t ? 1 : 0;
+            var sw = hmap[y + 1][x] > t ? 1 : 0;
+            var state = nw * 8 + ne * 4 + se * 2 + sw;
 
-            let caseIndex = 0;
-            if (tl > threshold) caseIndex |= 1;
-            if (tr > threshold) caseIndex |= 2;
-            if (br > threshold) caseIndex |= 4;
-            if (bl > threshold) caseIndex |= 8;
+            if (state === 0 || state === 15) continue;
 
-            if (caseIndex === 0 || caseIndex === 15) continue;
+            var px = x * step;
+            var py = y * step;
 
-            const px = x * resolution;
-            const py = y * resolution;
-            const top = interpolate(tl, tr, threshold);
-            const right = interpolate(tr, br, threshold);
-            const bottom = interpolate(bl, br, threshold);
-            const left = interpolate(tl, bl, threshold);
-
-            let p1, p2;
-            switch (caseIndex) {
-              case 1: case 14:
-                p1 = [px + top * resolution, py];
-                p2 = [px, py + left * resolution];
-                break;
-              case 2: case 13:
-                p1 = [px + top * resolution, py];
-                p2 = [px + resolution, py + right * resolution];
-                break;
-              case 3: case 12:
-                p1 = [px, py + left * resolution];
-                p2 = [px + resolution, py + right * resolution];
-                break;
-              case 4: case 11:
-                p1 = [px + resolution, py + right * resolution];
-                p2 = [px + bottom * resolution, py + resolution];
-                break;
-              case 5:
-                ctx.moveTo(px + top * resolution, py);
-                ctx.lineTo(px + resolution, py + right * resolution);
-                p1 = [px, py + left * resolution];
-                p2 = [px + bottom * resolution, py + resolution];
-                break;
-              case 6: case 9:
-                p1 = [px + top * resolution, py];
-                p2 = [px + bottom * resolution, py + resolution];
-                break;
-              case 7: case 8:
-                p1 = [px, py + left * resolution];
-                p2 = [px + bottom * resolution, py + resolution];
-                break;
-              case 10:
-                ctx.moveTo(px + top * resolution, py);
-                ctx.lineTo(px, py + left * resolution);
-                p1 = [px + resolution, py + right * resolution];
-                p2 = [px + bottom * resolution, py + resolution];
-                break;
+            // Interpolation helper
+            function mix(a, b) {
+              var d = b - a;
+              if (Math.abs(d) < 0.001) return 0.5;
+              return (t - a) / d;
             }
-            if (p1 && p2) {
-              ctx.moveTo(p1[0], p1[1]);
-              ctx.lineTo(p2[0], p2[1]);
+
+            var n = mix(hmap[y][x], hmap[y][x + 1]) * step;
+            var e = mix(hmap[y][x + 1], hmap[y + 1][x + 1]) * step;
+            var s = mix(hmap[y + 1][x], hmap[y + 1][x + 1]) * step;
+            var we = mix(hmap[y][x], hmap[y + 1][x]) * step;
+
+            // Draw segments based on marching squares lookup
+            switch (state) {
+              case 1: case 14:
+                ctx.moveTo(px, py + we); ctx.lineTo(px + s, py + step); break;
+              case 2: case 13:
+                ctx.moveTo(px + s, py + step); ctx.lineTo(px + step, py + e); break;
+              case 3: case 12:
+                ctx.moveTo(px, py + we); ctx.lineTo(px + step, py + e); break;
+              case 4: case 11:
+                ctx.moveTo(px + n, py); ctx.lineTo(px + step, py + e); break;
+              case 5:
+                ctx.moveTo(px + n, py); ctx.lineTo(px, py + we);
+                ctx.moveTo(px + s, py + step); ctx.lineTo(px + step, py + e); break;
+              case 6: case 9:
+                ctx.moveTo(px + n, py); ctx.lineTo(px + s, py + step); break;
+              case 7: case 8:
+                ctx.moveTo(px + n, py); ctx.lineTo(px, py + we); break;
+              case 10:
+                ctx.moveTo(px + n, py); ctx.lineTo(px + step, py + e);
+                ctx.moveTo(px, py + we); ctx.lineTo(px + s, py + step); break;
             }
           }
         }
@@ -214,8 +194,24 @@
       }
     }
 
-    initPermutation();
+    initPerm();
     draw();
-    window.addEventListener('resize', draw);
-  })();
+
+    var timeout;
+    window.addEventListener('resize', function() {
+      clearTimeout(timeout);
+      timeout = setTimeout(draw, 150);
+    });
+  }
+
+  // Try to initialize
+  if (document.readyState === 'complete') {
+    init();
+  } else {
+    window.addEventListener('load', init);
+  }
+
+  // Also try after a short delay as fallback
+  setTimeout(init, 100);
+})();
 </script>

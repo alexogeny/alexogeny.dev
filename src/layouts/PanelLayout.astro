@@ -1,6 +1,7 @@
 ---
 import '~/assets/styles/tailwind.css';
 import '@fontsource-variable/inter';
+import { ViewTransitions } from 'astro:transitions';
 
 import CommonMeta from '~/components/common/CommonMeta.astro';
 import Favicons from '~/components/Favicons.astro';
@@ -26,6 +27,7 @@ const { language, textDirection } = I18N;
     <Favicons />
     <Metadata {...metadata} />
     <Analytics />
+    <ViewTransitions />
     <style is:inline is:global>
       :root {
         --aw-font-sans: 'Inter Variable', system-ui, sans-serif;
@@ -34,6 +36,8 @@ const { language, textDirection } = I18N;
         --text-primary: #e5e5e5;
         --text-muted: #888888;
         --text-accent: #555555;
+        --slide-out: slide-out-to-left;
+        --slide-in: slide-in-from-right;
       }
 
       * {
@@ -66,6 +70,7 @@ const { language, textDirection } = I18N;
         width: 100%;
         padding: 2.5rem;
         box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        view-transition-name: panel;
       }
 
       .trail-nav {
@@ -112,10 +117,116 @@ const { language, textDirection } = I18N;
       .trail-link.active .trail-marker {
         opacity: 1;
       }
+
+      /* View Transition Animations - Sliding in different directions */
+      @keyframes slide-out-to-left {
+        from { transform: translateX(0); opacity: 1; }
+        to { transform: translateX(-80px); opacity: 0; }
+      }
+
+      @keyframes slide-out-to-right {
+        from { transform: translateX(0); opacity: 1; }
+        to { transform: translateX(80px); opacity: 0; }
+      }
+
+      @keyframes slide-out-to-top {
+        from { transform: translateY(0); opacity: 1; }
+        to { transform: translateY(-80px); opacity: 0; }
+      }
+
+      @keyframes slide-out-to-bottom {
+        from { transform: translateY(0); opacity: 1; }
+        to { transform: translateY(80px); opacity: 0; }
+      }
+
+      @keyframes slide-in-from-left {
+        from { transform: translateX(-80px); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+      }
+
+      @keyframes slide-in-from-right {
+        from { transform: translateX(80px); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+      }
+
+      @keyframes slide-in-from-top {
+        from { transform: translateY(-80px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+      }
+
+      @keyframes slide-in-from-bottom {
+        from { transform: translateY(80px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+      }
+
+      /* Panel transitions */
+      ::view-transition-old(panel) {
+        animation: 0.25s ease-out both var(--slide-out);
+      }
+
+      ::view-transition-new(panel) {
+        animation: 0.25s ease-out 0.05s both var(--slide-in);
+      }
+
+      /* Keep topo background persistent - no animation */
+      #topo-bg {
+        view-transition-name: topo;
+      }
+
+      ::view-transition-old(topo),
+      ::view-transition-new(topo) {
+        animation: none;
+        mix-blend-mode: normal;
+      }
     </style>
   </head>
   <body class="antialiased">
-    <TopoBackground />
+    <TopoBackground transition:persist />
     <slot />
+
+    <script is:inline>
+      (function() {
+        var pages = ['/', '/cv', '/projects', '/contact'];
+
+        function getIdx(path) {
+          var p = path.replace(/\/$/, '') || '/';
+          return pages.indexOf(p);
+        }
+
+        function setDirection(fromPath, toPath) {
+          var fromIdx = getIdx(fromPath);
+          var toIdx = getIdx(toPath);
+
+          // Pick random direction with bias based on navigation
+          var dirs = [
+            ['slide-out-to-left', 'slide-in-from-right'],
+            ['slide-out-to-right', 'slide-in-from-left'],
+            ['slide-out-to-top', 'slide-in-from-bottom'],
+            ['slide-out-to-bottom', 'slide-in-from-top']
+          ];
+
+          var pick;
+          if (fromIdx !== -1 && toIdx !== -1) {
+            var diff = toIdx - fromIdx;
+            if (diff > 0) {
+              // Forward: left/down
+              pick = Math.random() > 0.5 ? dirs[0] : dirs[3];
+            } else {
+              // Back: right/up
+              pick = Math.random() > 0.5 ? dirs[1] : dirs[2];
+            }
+          } else {
+            pick = dirs[Math.floor(Math.random() * 4)];
+          }
+
+          document.documentElement.style.setProperty('--slide-out', pick[0]);
+          document.documentElement.style.setProperty('--slide-in', pick[1]);
+        }
+
+        document.addEventListener('astro:before-preparation', function(e) {
+          setDirection(window.location.pathname, new URL(e.to).pathname);
+        });
+      })();
+    </script>
   </body>
 </html>
