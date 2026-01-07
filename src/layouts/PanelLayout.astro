@@ -1,0 +1,121 @@
+---
+import '~/assets/styles/tailwind.css';
+import '@fontsource-variable/inter';
+
+import CommonMeta from '~/components/common/CommonMeta.astro';
+import Favicons from '~/components/Favicons.astro';
+import Metadata from '~/components/common/Metadata.astro';
+import Analytics from '~/components/common/Analytics.astro';
+import TopoBackground from '~/components/TopoBackground.astro';
+
+import { I18N } from '~/utils/config';
+import type { MetaData as MetaDataType } from '~/types';
+
+export interface Props {
+  metadata?: MetaDataType;
+}
+
+const { metadata = {} } = Astro.props;
+const { language, textDirection } = I18N;
+---
+
+<!DOCTYPE html>
+<html lang={language} dir={textDirection}>
+  <head>
+    <CommonMeta />
+    <Favicons />
+    <Metadata {...metadata} />
+    <Analytics />
+    <style is:inline is:global>
+      :root {
+        --aw-font-sans: 'Inter Variable', system-ui, sans-serif;
+        --panel-bg: rgba(10, 10, 10, 0.85);
+        --panel-border: rgba(40, 40, 40, 0.6);
+        --text-primary: #e5e5e5;
+        --text-muted: #888888;
+        --text-accent: #555555;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html, body {
+        margin: 0;
+        padding: 0;
+        min-height: 100vh;
+        background: #000;
+        color: var(--text-primary);
+        font-family: var(--aw-font-sans);
+      }
+
+      body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+      }
+
+      .panel {
+        background: var(--panel-bg);
+        border: 1px solid var(--panel-border);
+        border-radius: 1rem;
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        max-width: 480px;
+        width: 100%;
+        padding: 2.5rem;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      }
+
+      .trail-nav {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 2rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid var(--panel-border);
+      }
+
+      .trail-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        border-radius: 0.5rem;
+        font-size: 0.875rem;
+        color: var(--text-muted);
+        text-decoration: none;
+        transition: all 0.2s ease;
+        border: 1px solid transparent;
+      }
+
+      .trail-link:hover {
+        color: var(--text-primary);
+        background: rgba(255, 255, 255, 0.05);
+        border-color: var(--panel-border);
+      }
+
+      .trail-link.active {
+        color: var(--text-primary);
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      .trail-marker {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: currentColor;
+        opacity: 0.5;
+      }
+
+      .trail-link:hover .trail-marker,
+      .trail-link.active .trail-marker {
+        opacity: 1;
+      }
+    </style>
+  </head>
+  <body class="antialiased">
+    <TopoBackground />
+    <slot />
+  </body>
+</html>
