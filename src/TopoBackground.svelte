@@ -1,22 +1,25 @@
 <script>
   import { onMount } from 'svelte';
 
+  export let offsetX = 0;
+  export let offsetY = 0;
+
   let canvas;
   let ctx;
+  let noise;
+  let seed = 42; // Fixed seed for consistent map
 
   // Perlin noise implementation
-  function createNoise(seed) {
+  function createNoise(s) {
     const perm = [];
-
-    // Seeded RNG
-    function rng(s) {
+    function rng(seed) {
       return function() {
-        s = (s * 1103515245 + 12345) & 0x7fffffff;
-        return s / 0x7fffffff;
+        seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+        return seed / 0x7fffffff;
       };
     }
 
-    const random = rng(seed);
+    const random = rng(s);
     for (let i = 0; i < 256; i++) perm[i] = i;
     for (let i = 255; i > 0; i--) {
       const j = Math.floor(random() * (i + 1));
@@ -54,10 +57,10 @@
     };
   }
 
-  function fbm(noise, x, y) {
+  function fbm(n, x, y) {
     let val = 0, amp = 1, freq = 1;
-    for (let i = 0; i < 4; i++) {
-      val += amp * noise(x * freq, y * freq);
+    for (let i = 0; i < 3; i++) {
+      val += amp * n(x * freq, y * freq);
       amp *= 0.5;
       freq *= 2;
     }
@@ -65,7 +68,7 @@
   }
 
   function draw() {
-    if (!canvas || !ctx) return;
+    if (!canvas || !ctx || !noise) return;
 
     const w = window.innerWidth;
     const h = window.innerHeight;
@@ -81,29 +84,30 @@
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, w, h);
 
-    const seed = Date.now() % 100000;
-    const noise = createNoise(seed);
-    const scale = 0.005;
-    const levels = 20;
-    const step = 5;
+    // Larger scale = fewer, more spread out contours
+    const scale = 0.002;
+    const levels = 12;
+    const step = 8;
     const cols = Math.ceil(w / step) + 1;
     const rows = Math.ceil(h / step) + 1;
 
-    // Build height map
+    // Build height map with offset
     const hmap = [];
     for (let j = 0; j < rows; j++) {
       hmap[j] = [];
       for (let i = 0; i < cols; i++) {
-        hmap[j][i] = fbm(noise, i * step * scale, j * step * scale);
+        const worldX = (i * step + offsetX) * scale;
+        const worldY = (j * step + offsetY) * scale;
+        hmap[j][i] = fbm(noise, worldX, worldY);
       }
     }
 
-    // Marching squares for contours
-    ctx.strokeStyle = '#333';
-    ctx.lineWidth = 1;
+    // Draw contours - thinner, more subtle
+    ctx.strokeStyle = '#282828';
+    ctx.lineWidth = 0.8;
 
     for (let lv = 0; lv < levels; lv++) {
-      const t = -0.8 + (lv / levels) * 1.6;
+      const t = -0.6 + (lv / levels) * 1.2;
       ctx.beginPath();
 
       for (let y = 0; y < rows - 1; y++) {
@@ -158,6 +162,7 @@
 
   onMount(() => {
     ctx = canvas.getContext('2d');
+    noise = createNoise(seed);
     draw();
 
     let timeout;
@@ -169,6 +174,11 @@
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   });
+
+  // Redraw when offset changes
+  $: if (ctx && noise) {
+    draw();
+  }
 </script>
 
 <canvas bind:this={canvas}></canvas>

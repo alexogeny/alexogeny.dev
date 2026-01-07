@@ -1,5 +1,4 @@
 <script>
-  export let navigate;
 </script>
 
 <header>

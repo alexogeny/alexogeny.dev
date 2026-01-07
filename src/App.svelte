@@ -1,6 +1,4 @@
 <script>
-  import { onMount } from 'svelte';
-  import { fly } from 'svelte/transition';
   import TopoBackground from './TopoBackground.svelte';
   import Home from './pages/Home.svelte';
   import CV from './pages/CV.svelte';
@@ -9,59 +7,95 @@
 
   const pages = ['home', 'cv', 'projects', 'contact'];
   let currentPage = 'home';
-  let transitionDirection = { x: 100, y: 0 };
+  let isNavigating = false;
 
-  function navigate(page) {
-    const fromIdx = pages.indexOf(currentPage);
-    const toIdx = pages.indexOf(page);
+  // Map coordinates for each page location on the topography
+  const pageCoords = {
+    home: { x: 0, y: 0 },
+    cv: { x: 800, y: 400 },
+    projects: { x: -600, y: 700 },
+    contact: { x: 400, y: -500 }
+  };
 
-    // Randomize direction based on navigation
-    const directions = [
-      { x: 100, y: 0 },   // from right
-      { x: -100, y: 0 },  // from left
-      { x: 0, y: 100 },   // from bottom
-      { x: 0, y: -100 }   // from top
-    ];
+  let offsetX = 0;
+  let offsetY = 0;
 
-    if (toIdx > fromIdx) {
-      // Forward: right or bottom
-      transitionDirection = Math.random() > 0.5 ? directions[0] : directions[2];
-    } else {
-      // Back: left or top
-      transitionDirection = Math.random() > 0.5 ? directions[1] : directions[3];
+  // Easing function for smooth animation
+  function easeInOutCubic(t) {
+    return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  }
+
+  function animateToPage(targetPage, duration = 3000) {
+    const startX = offsetX;
+    const startY = offsetY;
+    const endX = pageCoords[targetPage].x;
+    const endY = pageCoords[targetPage].y;
+    const startTime = performance.now();
+
+    isNavigating = true;
+
+    function step(currentTime) {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = easeInOutCubic(progress);
+
+      offsetX = startX + (endX - startX) * eased;
+      offsetY = startY + (endY - startY) * eased;
+
+      if (progress < 1) {
+        requestAnimationFrame(step);
+      } else {
+        isNavigating = false;
+        currentPage = targetPage;
+      }
     }
 
-    currentPage = page;
+    requestAnimationFrame(step);
+  }
+
+  function navigate(page) {
+    if (isNavigating || page === currentPage) return;
+    animateToPage(page);
   }
 
   const components = { home: Home, cv: CV, projects: Projects, contact: Contact };
 </script>
 
-<TopoBackground />
+<TopoBackground {offsetX} {offsetY} />
 
 <main>
-  {#key currentPage}
-    <div
-      class="panel"
-      in:fly={{ x: transitionDirection.x, y: transitionDirection.y, duration: 250, delay: 50 }}
-      out:fly={{ x: -transitionDirection.x, y: -transitionDirection.y, duration: 200 }}
-    >
+  <div class="panel" class:navigating={isNavigating}>
+    {#if !isNavigating}
       <svelte:component this={components[currentPage]} {navigate} />
 
       <nav class="trail-nav">
-        {#each pages as page}
+        {#if currentPage === 'home'}
+          {#each pages.filter(p => p !== 'home') as page}
+            <button
+              class="trail-link"
+              on:click={() => navigate(page)}
+            >
+              <span class="trail-marker"></span>
+              {page === 'cv' ? 'CV' : page.charAt(0).toUpperCase() + page.slice(1)}
+            </button>
+          {/each}
+        {:else}
           <button
             class="trail-link"
-            class:active={currentPage === page}
-            on:click={() => navigate(page)}
+            on:click={() => navigate('home')}
           >
             <span class="trail-marker"></span>
-            {page === 'home' ? 'Home' : page === 'cv' ? 'CV' : page.charAt(0).toUpperCase() + page.slice(1)}
+            ← Back to Home
           </button>
-        {/each}
+        {/if}
       </nav>
-    </div>
-  {/key}
+    {:else}
+      <div class="navigating-indicator">
+        <span class="walking-dot"></span>
+        Traversing the terrain...
+      </div>
+    {/if}
+  </div>
 </main>
 
 <style>
@@ -80,6 +114,35 @@
     width: 100%;
     padding: 2.5rem;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    min-height: 200px;
+  }
+
+  .panel.navigating {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .navigating-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    letter-spacing: 0.05em;
+  }
+
+  .walking-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--text-accent);
+    animation: pulse 1s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 0.4; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.2); }
   }
 
   .trail-nav {
@@ -88,6 +151,7 @@
     margin-top: 2rem;
     padding-top: 1.5rem;
     border-top: 1px solid var(--panel-border);
+    flex-wrap: wrap;
   }
 
   .trail-link {
@@ -111,11 +175,6 @@
     border-color: var(--panel-border);
   }
 
-  .trail-link.active {
-    color: var(--text-primary);
-    background: rgba(255, 255, 255, 0.08);
-  }
-
   .trail-marker {
     width: 6px;
     height: 6px;
@@ -124,8 +183,7 @@
     opacity: 0.5;
   }
 
-  .trail-link:hover .trail-marker,
-  .trail-link.active .trail-marker {
+  .trail-link:hover .trail-marker {
     opacity: 1;
   }
 </style>
