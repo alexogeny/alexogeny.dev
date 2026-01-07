@@ -14,12 +14,13 @@
   const dispatch = createEventDispatcher();
 
   let canvas;
+  let terrainCanvas;
   let ctx;
+  let terrainCtx;
   let noise;
   let seed = 42;
-  let cachedHmap = null;
-  let cachedDimensions = { w: 0, h: 0 };
-  let lastPanOffset = { x: null, y: null };
+  let lastTerrainOffset = { x: null, y: null };
+  let animationId = null;
 
   // Trail paths with branches for sub-items
   const trailPaths = {
@@ -148,9 +149,20 @@
     return val;
   }
 
-  function buildHeightmap(w, h, panX, panY) {
+  // Draw terrain to offscreen canvas (expensive, done infrequently)
+  function drawTerrain(w, h, panX, panY) {
+    if (!terrainCanvas || !terrainCtx || !noise) return;
+
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    terrainCanvas.width = w * dpr;
+    terrainCanvas.height = h * dpr;
+    terrainCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    terrainCtx.fillStyle = '#000';
+    terrainCtx.fillRect(0, 0, w, h);
+
     const scale = 0.004;
-    const step = 8;
+    const step = 10;
     const terrainPanScale = 0.04;
     const cols = Math.ceil(w / step) + 1;
     const rows = Math.ceil(h / step) + 1;
@@ -164,45 +176,14 @@
         hmap[j][i] = fbm(noise, worldX, worldY);
       }
     }
-    return { hmap, cols, rows, step };
-  }
 
-  function draw() {
-    if (!canvas || !ctx || !noise) return;
-
-    const w = window.innerWidth;
-    const h = window.innerHeight;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-
-    canvas.width = w * dpr;
-    canvas.height = h * dpr;
-    canvas.style.width = w + 'px';
-    canvas.style.height = h + 'px';
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-    ctx.fillStyle = '#000';
-    ctx.fillRect(0, 0, w, h);
-
-    // Rebuild heightmap only when dimensions change or significant pan
-    const panChanged = lastPanOffset.x === null ||
-      Math.abs(offsetX - lastPanOffset.x) > 50 ||
-      Math.abs(offsetY - lastPanOffset.y) > 50;
-
-    if (!cachedHmap || cachedDimensions.w !== w || cachedDimensions.h !== h || panChanged) {
-      cachedHmap = buildHeightmap(w, h, offsetX, offsetY);
-      cachedDimensions = { w, h };
-      lastPanOffset = { x: offsetX, y: offsetY };
-    }
-
-    const { hmap, cols, rows, step } = cachedHmap;
-    const levels = 14;
-
-    ctx.strokeStyle = '#252525';
-    ctx.lineWidth = 0.7;
+    const levels = 12;
+    terrainCtx.strokeStyle = '#222';
+    terrainCtx.lineWidth = 0.6;
 
     for (let lv = 0; lv < levels; lv++) {
-      const t = -0.6 + (lv / levels) * 1.2;
-      ctx.beginPath();
+      const t = -0.5 + (lv / levels) * 1.0;
+      terrainCtx.beginPath();
 
       for (let y = 0; y < rows - 1; y++) {
         for (let x = 0; x < cols - 1; x++) {
@@ -217,11 +198,10 @@
           const px = x * step;
           const py = y * step;
 
-          function mix(a, b) {
+          const mix = (a, b) => {
             const d = b - a;
-            if (Math.abs(d) < 0.001) return 0.5;
-            return (t - a) / d;
-          }
+            return Math.abs(d) < 0.001 ? 0.5 : (t - a) / d;
+          };
 
           const n = px + mix(hmap[y][x], hmap[y][x + 1]) * step;
           const e = py + mix(hmap[y][x + 1], hmap[y + 1][x + 1]) * step;
@@ -229,28 +209,51 @@
           const we = py + mix(hmap[y][x], hmap[y + 1][x]) * step;
 
           switch (state) {
-            case 1: case 14:
-              ctx.moveTo(px, we); ctx.lineTo(s, py + step); break;
-            case 2: case 13:
-              ctx.moveTo(s, py + step); ctx.lineTo(px + step, e); break;
-            case 3: case 12:
-              ctx.moveTo(px, we); ctx.lineTo(px + step, e); break;
-            case 4: case 11:
-              ctx.moveTo(n, py); ctx.lineTo(px + step, e); break;
-            case 5:
-              ctx.moveTo(n, py); ctx.lineTo(px, we);
-              ctx.moveTo(s, py + step); ctx.lineTo(px + step, e); break;
-            case 6: case 9:
-              ctx.moveTo(n, py); ctx.lineTo(s, py + step); break;
-            case 7: case 8:
-              ctx.moveTo(n, py); ctx.lineTo(px, we); break;
-            case 10:
-              ctx.moveTo(n, py); ctx.lineTo(px + step, e);
-              ctx.moveTo(px, we); ctx.lineTo(s, py + step); break;
+            case 1: case 14: terrainCtx.moveTo(px, we); terrainCtx.lineTo(s, py + step); break;
+            case 2: case 13: terrainCtx.moveTo(s, py + step); terrainCtx.lineTo(px + step, e); break;
+            case 3: case 12: terrainCtx.moveTo(px, we); terrainCtx.lineTo(px + step, e); break;
+            case 4: case 11: terrainCtx.moveTo(n, py); terrainCtx.lineTo(px + step, e); break;
+            case 5: terrainCtx.moveTo(n, py); terrainCtx.lineTo(px, we); terrainCtx.moveTo(s, py + step); terrainCtx.lineTo(px + step, e); break;
+            case 6: case 9: terrainCtx.moveTo(n, py); terrainCtx.lineTo(s, py + step); break;
+            case 7: case 8: terrainCtx.moveTo(n, py); terrainCtx.lineTo(px, we); break;
+            case 10: terrainCtx.moveTo(n, py); terrainCtx.lineTo(px + step, e); terrainCtx.moveTo(px, we); terrainCtx.lineTo(s, py + step); break;
           }
         }
       }
-      ctx.stroke();
+      terrainCtx.stroke();
+    }
+
+    lastTerrainOffset = { x: panX, y: panY };
+  }
+
+  function draw() {
+    if (!canvas || !ctx) return;
+
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    // Check if we need to redraw terrain
+    const needsTerrainRedraw = lastTerrainOffset.x === null ||
+      Math.abs(offsetX - lastTerrainOffset.x) > 500 ||
+      Math.abs(offsetY - lastTerrainOffset.y) > 500;
+
+    if (needsTerrainRedraw && noise) {
+      drawTerrain(w, h, offsetX, offsetY);
+    }
+
+    // Copy terrain to main canvas
+    if (terrainCanvas) {
+      ctx.drawImage(terrainCanvas, 0, 0, w, h);
+    } else {
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, w, h);
     }
 
     const centerX = w / 2;
@@ -436,14 +439,16 @@
 
   onMount(() => {
     ctx = canvas.getContext('2d');
+    terrainCanvas = document.createElement('canvas');
+    terrainCtx = terrainCanvas.getContext('2d');
     noise = createNoise(seed);
     draw();
 
     let resizeTimeout;
     const handleResize = () => {
       clearTimeout(resizeTimeout);
-      cachedHmap = null;
-      resizeTimeout = setTimeout(draw, 50);
+      lastTerrainOffset = { x: null, y: null };
+      resizeTimeout = setTimeout(draw, 100);
     };
 
     window.addEventListener('resize', handleResize);
@@ -454,12 +459,21 @@
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
+      if (animationId) cancelAnimationFrame(animationId);
     };
   });
 
-  $: if (ctx && noise) {
+  function scheduleDraw() {
+    if (animationId) return;
+    animationId = requestAnimationFrame(() => {
+      animationId = null;
+      draw();
+    });
+  }
+
+  $: if (ctx) {
     offsetX, offsetY, trailProgress, exploreMode, currentLocation, visited;
-    requestAnimationFrame(draw);
+    scheduleDraw();
   }
 </script>
 
