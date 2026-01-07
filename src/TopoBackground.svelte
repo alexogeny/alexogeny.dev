@@ -9,6 +9,7 @@
   export let waypoints = {};
   export let exploreMode = false;
   export let currentLocation = 'home';
+  export let visited = new Set();
 
   const dispatch = createEventDispatcher();
 
@@ -16,32 +17,80 @@
   let ctx;
   let noise;
   let seed = 42;
+  let cachedHmap = null;
+  let cachedDimensions = { w: 0, h: 0 };
+  let lastPanOffset = { x: null, y: null };
 
-  // Pre-defined curved trail paths - spread far apart so you need to explore
+  // Trail paths with branches for sub-items
   const trailPaths = {
-    cv: [
-      { x: 0, y: 0 },
-      { x: 4000, y: -2000 },
-      { x: 8000, y: 1000 },
-      { x: 12000, y: 4000 },
-      { x: 16000, y: 8000 }
-    ],
-    projects: [
-      { x: 0, y: 0 },
-      { x: -3000, y: 4000 },
-      { x: -6000, y: 7000 },
-      { x: -10000, y: 10000 },
-      { x: -12000, y: 14000 }
-    ],
-    contact: [
-      { x: 0, y: 0 },
-      { x: 2000, y: -3000 },
-      { x: 5000, y: -6000 },
-      { x: 8000, y: -10000 }
-    ]
+    cv: {
+      main: [
+        { x: 0, y: 0 },
+        { x: 3000, y: -1500 },
+        { x: 7000, y: 500 },
+        { x: 11000, y: 3000 },
+        { x: 16000, y: 8000 }
+      ],
+      branches: {
+        'cv-fleet': [
+          { x: 16000, y: 8000 },
+          { x: 18000, y: 9500 },
+          { x: 20000, y: 10000 }
+        ],
+        'cv-energy': [
+          { x: 16000, y: 8000 },
+          { x: 17500, y: 6000 },
+          { x: 19000, y: 5000 }
+        ],
+        'cv-consulting': [
+          { x: 16000, y: 8000 },
+          { x: 18500, y: 7500 },
+          { x: 21000, y: 8500 }
+        ]
+      }
+    },
+    projects: {
+      main: [
+        { x: 0, y: 0 },
+        { x: -2500, y: 3500 },
+        { x: -5000, y: 6000 },
+        { x: -8500, y: 9000 },
+        { x: -12000, y: 14000 }
+      ],
+      branches: {
+        'proj-fleet': [
+          { x: -12000, y: 14000 },
+          { x: -14000, y: 15500 },
+          { x: -15500, y: 16500 }
+        ],
+        'proj-home': [
+          { x: -12000, y: 14000 },
+          { x: -10500, y: 16000 },
+          { x: -9500, y: 17500 }
+        ],
+        'proj-weather': [
+          { x: -12000, y: 14000 },
+          { x: -13500, y: 12500 },
+          { x: -15000, y: 11500 }
+        ],
+        'proj-oss': [
+          { x: -12000, y: 14000 },
+          { x: -11000, y: 12000 },
+          { x: -10000, y: 10500 }
+        ]
+      }
+    },
+    contact: {
+      main: [
+        { x: 0, y: 0 },
+        { x: 1500, y: -2500 },
+        { x: 4000, y: -5000 },
+        { x: 8000, y: -10000 }
+      ],
+      branches: {}
+    }
   };
 
-  // Perlin noise implementation
   function createNoise(s) {
     const perm = [];
     function rng(seed) {
@@ -99,6 +148,25 @@
     return val;
   }
 
+  function buildHeightmap(w, h, panX, panY) {
+    const scale = 0.004;
+    const step = 8;
+    const terrainPanScale = 0.04;
+    const cols = Math.ceil(w / step) + 1;
+    const rows = Math.ceil(h / step) + 1;
+
+    const hmap = [];
+    for (let j = 0; j < rows; j++) {
+      hmap[j] = [];
+      for (let i = 0; i < cols; i++) {
+        const worldX = (i * step + panX * terrainPanScale) * scale;
+        const worldY = (j * step + panY * terrainPanScale) * scale;
+        hmap[j][i] = fbm(noise, worldX, worldY);
+      }
+    }
+    return { hmap, cols, rows, step };
+  }
+
   function draw() {
     if (!canvas || !ctx || !noise) return;
 
@@ -112,32 +180,25 @@
     canvas.style.height = h + 'px';
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    // Black background
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, w, h);
 
-    // Balanced terrain density
-    const scale = 0.0035;
-    const levels = 16;
-    const step = 6;
-    const cols = Math.ceil(w / step) + 1;
-    const rows = Math.ceil(h / step) + 1;
+    // Rebuild heightmap only when dimensions change or significant pan
+    const panChanged = lastPanOffset.x === null ||
+      Math.abs(offsetX - lastPanOffset.x) > 50 ||
+      Math.abs(offsetY - lastPanOffset.y) > 50;
 
-    // Build height map with offset (scaled to match trail movement)
-    const terrainPanScale = 0.04; // Match the worldToScreen scale
-    const hmap = [];
-    for (let j = 0; j < rows; j++) {
-      hmap[j] = [];
-      for (let i = 0; i < cols; i++) {
-        const worldX = (i * step + offsetX * terrainPanScale) * scale;
-        const worldY = (j * step + offsetY * terrainPanScale) * scale;
-        hmap[j][i] = fbm(noise, worldX, worldY);
-      }
+    if (!cachedHmap || cachedDimensions.w !== w || cachedDimensions.h !== h || panChanged) {
+      cachedHmap = buildHeightmap(w, h, offsetX, offsetY);
+      cachedDimensions = { w, h };
+      lastPanOffset = { x: offsetX, y: offsetY };
     }
 
-    // Draw contours - thinner, more subtle
-    ctx.strokeStyle = '#282828';
-    ctx.lineWidth = 0.8;
+    const { hmap, cols, rows, step } = cachedHmap;
+    const levels = 14;
+
+    ctx.strokeStyle = '#252525';
+    ctx.lineWidth = 0.7;
 
     for (let lv = 0; lv < levels; lv++) {
       const t = -0.6 + (lv / levels) * 1.2;
@@ -192,152 +253,143 @@
       ctx.stroke();
     }
 
-    // Helper to convert world coords to screen coords
     const centerX = w / 2;
     const centerY = h / 2;
+    const worldScale = 0.035;
+
     function worldToScreen(wx, wy) {
       return {
-        x: centerX + (wx - offsetX) * 0.04,
-        y: centerY + (wy - offsetY) * 0.04
+        x: centerX + (wx - offsetX) * worldScale,
+        y: centerY + (wy - offsetY) * worldScale
       };
     }
 
-    // Draw curved trail paths
-    ctx.setLineDash([6, 10]);
-    for (const [name, path] of Object.entries(trailPaths)) {
-      if (path.length < 2) continue;
+    // Draw all trail paths (main + branches)
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
 
-      ctx.strokeStyle = '#2a2a2a';
-      ctx.lineWidth = 2;
+    for (const [name, pathData] of Object.entries(trailPaths)) {
+      // Draw main path
+      drawPath(pathData.main, '#1a1a1a', 2.5);
+
+      // Draw branches
+      for (const [branchName, branchPath] of Object.entries(pathData.branches || {})) {
+        drawPath(branchPath, '#181818', 1.5);
+      }
+    }
+
+    function drawPath(path, color, width) {
+      if (path.length < 2) return;
+
+      ctx.strokeStyle = color;
+      ctx.lineWidth = width;
+      ctx.setLineDash([5, 8]);
       ctx.beginPath();
 
-      const firstPt = worldToScreen(path[0].x, path[0].y);
-      ctx.moveTo(firstPt.x, firstPt.y);
+      const first = worldToScreen(path[0].x, path[0].y);
+      ctx.moveTo(first.x, first.y);
 
-      // Draw smooth curve through points using quadratic bezier
-      for (let i = 1; i < path.length - 1; i++) {
-        const curr = worldToScreen(path[i].x, path[i].y);
-        const next = worldToScreen(path[i + 1].x, path[i + 1].y);
-        const midX = (curr.x + next.x) / 2;
-        const midY = (curr.y + next.y) / 2;
-        ctx.quadraticCurveTo(curr.x, curr.y, midX, midY);
+      for (let i = 1; i < path.length; i++) {
+        const pt = worldToScreen(path[i].x, path[i].y);
+        const prev = worldToScreen(path[i-1].x, path[i-1].y);
+        const cpX = (prev.x + pt.x) / 2;
+        const cpY = (prev.y + pt.y) / 2;
+        ctx.quadraticCurveTo(prev.x, prev.y, cpX, cpY);
       }
 
-      // Final segment
-      const lastPt = worldToScreen(path[path.length - 1].x, path[path.length - 1].y);
-      ctx.lineTo(lastPt.x, lastPt.y);
+      const last = worldToScreen(path[path.length - 1].x, path[path.length - 1].y);
+      ctx.lineTo(last.x, last.y);
       ctx.stroke();
+      ctx.setLineDash([]);
     }
-    ctx.setLineDash([]);
-
-    // Store marker positions for click detection
-    markerPositions = [];
 
     // Draw waypoint markers
+    markerPositions = [];
+
     for (const [name, coords] of Object.entries(waypoints)) {
       const screen = worldToScreen(coords.x, coords.y);
-      const isCurrentLocation = name === currentLocation;
-      const markerSize = isCurrentLocation ? 8 : 6;
+      const isCurrent = name === currentLocation;
+      const isVisited = visited.has(name);
+      const isMain = !name.includes('-');
+      const size = isCurrent ? 10 : isMain ? 7 : 5;
 
-      // Store for click detection
-      markerPositions.push({ name, x: screen.x, y: screen.y, size: markerSize + 15 });
+      markerPositions.push({ name, x: screen.x, y: screen.y, size: size + 20 });
 
-      // Outer ring
-      ctx.strokeStyle = isCurrentLocation ? '#666' : '#444';
-      ctx.lineWidth = 2;
+      // Outer glow for visited
+      if (isVisited && !isCurrent) {
+        ctx.fillStyle = 'rgba(80, 80, 80, 0.3)';
+        ctx.beginPath();
+        ctx.arc(screen.x, screen.y, size + 8, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Ring
+      ctx.strokeStyle = isCurrent ? '#777' : isVisited ? '#555' : '#333';
+      ctx.lineWidth = isCurrent ? 2.5 : 2;
       ctx.beginPath();
-      ctx.arc(screen.x, screen.y, markerSize + 4, 0, Math.PI * 2);
+      ctx.arc(screen.x, screen.y, size + 3, 0, Math.PI * 2);
       ctx.stroke();
 
-      // Inner dot
-      ctx.fillStyle = isCurrentLocation ? '#888' : '#555';
+      // Dot
+      ctx.fillStyle = isCurrent ? '#999' : isVisited ? '#666' : '#444';
       ctx.beginPath();
-      ctx.arc(screen.x, screen.y, markerSize, 0, Math.PI * 2);
+      ctx.arc(screen.x, screen.y, size, 0, Math.PI * 2);
       ctx.fill();
 
-      // Label (only in explore mode)
+      // Label in explore mode
       if (exploreMode) {
-        ctx.fillStyle = '#666';
-        ctx.font = '11px system-ui, sans-serif';
+        ctx.fillStyle = isVisited ? '#777' : '#555';
+        ctx.font = `${isMain ? 12 : 10}px system-ui, sans-serif`;
         ctx.textAlign = 'center';
-        const label = name === 'home' ? 'Home' : name === 'cv' ? 'CV' : name.charAt(0).toUpperCase() + name.slice(1);
-        ctx.fillText(label, screen.x, screen.y + markerSize + 18);
+        const label = getLabel(name);
+        ctx.fillText(label, screen.x, screen.y + size + 16);
       }
     }
 
-    // Draw animated trail marker during navigation
+    // Navigation animation
     if (trailFrom && trailTo && trailProgress > 0 && trailProgress < 1) {
-      // Find the path we're traversing
-      let activePath = null;
-      let reversed = false;
+      const fromX = trailFrom.x + (trailTo.x - trailFrom.x) * trailProgress;
+      const fromY = trailFrom.y + (trailTo.y - trailFrom.y) * trailProgress;
+      const marker = worldToScreen(fromX, fromY);
 
-      for (const [name, path] of Object.entries(trailPaths)) {
-        const endCoords = waypoints[name];
-        if (trailTo.x === endCoords?.x && trailTo.y === endCoords?.y) {
-          activePath = path;
-          break;
-        }
-        if (trailFrom.x === endCoords?.x && trailFrom.y === endCoords?.y) {
-          activePath = path;
-          reversed = true;
-          break;
-        }
-      }
+      ctx.fillStyle = '#bbb';
+      ctx.beginPath();
+      ctx.arc(marker.x, marker.y, 8, 0, Math.PI * 2);
+      ctx.fill();
 
-      if (activePath) {
-        // Interpolate along the curved path
-        const pathProgress = reversed ? 1 - trailProgress : trailProgress;
-        const totalSegments = activePath.length - 1;
-        const segmentFloat = pathProgress * totalSegments;
-        const segmentIndex = Math.min(Math.floor(segmentFloat), totalSegments - 1);
-        const segmentProgress = segmentFloat - segmentIndex;
-
-        const p1 = activePath[segmentIndex];
-        const p2 = activePath[segmentIndex + 1];
-        const markerWorld = {
-          x: p1.x + (p2.x - p1.x) * segmentProgress,
-          y: p1.y + (p2.y - p1.y) * segmentProgress
-        };
-        const marker = worldToScreen(markerWorld.x, markerWorld.y);
-
-        // Draw traveled path
-        ctx.strokeStyle = '#555';
-        ctx.lineWidth = 3;
-        ctx.setLineDash([]);
-        ctx.beginPath();
-        const startPt = worldToScreen(activePath[0].x, activePath[0].y);
-        ctx.moveTo(reversed ? marker.x : startPt.x, reversed ? marker.y : startPt.y);
-
-        for (let i = (reversed ? segmentIndex : 1); i <= (reversed ? activePath.length - 1 : segmentIndex); i++) {
-          const pt = worldToScreen(activePath[i].x, activePath[i].y);
-          ctx.lineTo(pt.x, pt.y);
-        }
-        if (!reversed) ctx.lineTo(marker.x, marker.y);
-        ctx.stroke();
-
-        // Moving marker
-        ctx.fillStyle = '#aaa';
-        ctx.beginPath();
-        ctx.arc(marker.x, marker.y, 8, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.strokeStyle = '#888';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(marker.x, marker.y, 12, 0, Math.PI * 2);
-        ctx.stroke();
-      }
+      ctx.strokeStyle = '#888';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(marker.x, marker.y, 13, 0, Math.PI * 2);
+      ctx.stroke();
     }
+  }
+
+  function getLabel(name) {
+    const labels = {
+      home: 'Home',
+      cv: 'Experience',
+      projects: 'Projects',
+      contact: 'Contact',
+      'cv-fleet': 'Fleet Ops',
+      'cv-energy': 'Energy',
+      'cv-consulting': 'Consulting',
+      'proj-fleet': 'Telemetry',
+      'proj-home': 'Home Server',
+      'proj-weather': 'Weather',
+      'proj-oss': 'Open Source'
+    };
+    return labels[name] || name;
   }
 
   let markerPositions = [];
   let isDragging = false;
   let dragStart = { x: 0, y: 0 };
   let offsetAtDragStart = { x: 0, y: 0 };
+  let wasDragging = false;
 
   function handleCanvasClick(e) {
     if (!exploreMode) return;
-    // Don't trigger click if we just finished dragging
     if (wasDragging) {
       wasDragging = false;
       return;
@@ -356,8 +408,6 @@
     }
   }
 
-  let wasDragging = false;
-
   function handleMouseDown(e) {
     if (!exploreMode) return;
     isDragging = true;
@@ -371,14 +421,12 @@
     const dx = e.clientX - dragStart.x;
     const dy = e.clientY - dragStart.y;
 
-    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
       wasDragging = true;
     }
 
-    // Multiply by a factor to make panning feel responsive (large world needs fast pan)
-    const newX = offsetAtDragStart.x - dx * 25;
-    const newY = offsetAtDragStart.y - dy * 25;
-
+    const newX = offsetAtDragStart.x - dx * 28;
+    const newY = offsetAtDragStart.y - dy * 28;
     dispatch('pan', { x: newX, y: newY });
   }
 
@@ -391,10 +439,11 @@
     noise = createNoise(seed);
     draw();
 
-    let timeout;
+    let resizeTimeout;
     const handleResize = () => {
-      clearTimeout(timeout);
-      timeout = setTimeout(draw, 100);
+      clearTimeout(resizeTimeout);
+      cachedHmap = null;
+      resizeTimeout = setTimeout(draw, 50);
     };
 
     window.addEventListener('resize', handleResize);
@@ -408,10 +457,9 @@
     };
   });
 
-  // Redraw when any prop changes
   $: if (ctx && noise) {
-    offsetX, offsetY, trailProgress, exploreMode, currentLocation;
-    draw();
+    offsetX, offsetY, trailProgress, exploreMode, currentLocation, visited;
+    requestAnimationFrame(draw);
   }
 </script>
 
