@@ -1,3 +1,83 @@
+<script context="module">
+  // Trail paths with branches for sub-items - exported for navigation
+  export const trailPaths = {
+    cv: {
+      main: [
+        { x: 0, y: 0 },
+        { x: 3000, y: -1500 },
+        { x: 7000, y: 500 },
+        { x: 11000, y: 3000 },
+        { x: 16000, y: 8000 }
+      ],
+      branches: {
+        'cv-fleet': [
+          { x: 16000, y: 8000 },
+          { x: 20000, y: 12000 },
+          { x: 25000, y: 15000 },
+          { x: 30000, y: 18000 }
+        ],
+        'cv-energy': [
+          { x: 16000, y: 8000 },
+          { x: 20000, y: 4000 },
+          { x: 25000, y: 1000 },
+          { x: 30000, y: -2000 }
+        ],
+        'cv-consulting': [
+          { x: 16000, y: 8000 },
+          { x: 22000, y: 8000 },
+          { x: 28000, y: 10000 },
+          { x: 34000, y: 12000 }
+        ]
+      }
+    },
+    projects: {
+      main: [
+        { x: 0, y: 0 },
+        { x: -2500, y: 3500 },
+        { x: -5000, y: 6000 },
+        { x: -8500, y: 9000 },
+        { x: -12000, y: 14000 }
+      ],
+      branches: {
+        'proj-fleet': [
+          { x: -12000, y: 14000 },
+          { x: -16000, y: 18000 },
+          { x: -20000, y: 22000 },
+          { x: -24000, y: 26000 }
+        ],
+        'proj-home': [
+          { x: -12000, y: 14000 },
+          { x: -8000, y: 18000 },
+          { x: -4000, y: 22000 },
+          { x: 0, y: 26000 }
+        ],
+        'proj-weather': [
+          { x: -12000, y: 14000 },
+          { x: -18000, y: 12000 },
+          { x: -24000, y: 10000 },
+          { x: -30000, y: 8000 }
+        ],
+        'proj-oss': [
+          { x: -12000, y: 14000 },
+          { x: -14000, y: 8000 },
+          { x: -16000, y: 2000 },
+          { x: -18000, y: -4000 }
+        ]
+      }
+    },
+    contact: {
+      main: [
+        { x: 0, y: 0 },
+        { x: 1500, y: -2500 },
+        { x: 4000, y: -5000 },
+        { x: 8000, y: -10000 },
+        { x: 12000, y: -16000 }
+      ],
+      branches: {}
+    }
+  };
+</script>
+
 <script>
   import { onMount, createEventDispatcher } from 'svelte';
 
@@ -21,76 +101,6 @@
   let seed = 42;
   let lastTerrainOffset = { x: null, y: null };
   let animationId = null;
-
-  // Trail paths with branches for sub-items
-  const trailPaths = {
-    cv: {
-      main: [
-        { x: 0, y: 0 },
-        { x: 3000, y: -1500 },
-        { x: 7000, y: 500 },
-        { x: 11000, y: 3000 },
-        { x: 16000, y: 8000 }
-      ],
-      branches: {
-        'cv-fleet': [
-          { x: 16000, y: 8000 },
-          { x: 18000, y: 9500 },
-          { x: 20000, y: 10000 }
-        ],
-        'cv-energy': [
-          { x: 16000, y: 8000 },
-          { x: 17500, y: 6000 },
-          { x: 19000, y: 5000 }
-        ],
-        'cv-consulting': [
-          { x: 16000, y: 8000 },
-          { x: 18500, y: 7500 },
-          { x: 21000, y: 8500 }
-        ]
-      }
-    },
-    projects: {
-      main: [
-        { x: 0, y: 0 },
-        { x: -2500, y: 3500 },
-        { x: -5000, y: 6000 },
-        { x: -8500, y: 9000 },
-        { x: -12000, y: 14000 }
-      ],
-      branches: {
-        'proj-fleet': [
-          { x: -12000, y: 14000 },
-          { x: -14000, y: 15500 },
-          { x: -15500, y: 16500 }
-        ],
-        'proj-home': [
-          { x: -12000, y: 14000 },
-          { x: -10500, y: 16000 },
-          { x: -9500, y: 17500 }
-        ],
-        'proj-weather': [
-          { x: -12000, y: 14000 },
-          { x: -13500, y: 12500 },
-          { x: -15000, y: 11500 }
-        ],
-        'proj-oss': [
-          { x: -12000, y: 14000 },
-          { x: -11000, y: 12000 },
-          { x: -10000, y: 10500 }
-        ]
-      }
-    },
-    contact: {
-      main: [
-        { x: 0, y: 0 },
-        { x: 1500, y: -2500 },
-        { x: 4000, y: -5000 },
-        { x: 8000, y: -10000 }
-      ],
-      branches: {}
-    }
-  };
 
   function createNoise(s) {
     const perm = [];

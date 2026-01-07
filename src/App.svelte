@@ -1,46 +1,95 @@
 <script>
-  import TopoBackground from './TopoBackground.svelte';
+  import TopoBackground, { trailPaths } from './TopoBackground.svelte';
   import Home from './pages/Home.svelte';
-  import CV from './pages/CV.svelte';
-  import Projects from './pages/Projects.svelte';
-  import Contact from './pages/Contact.svelte';
 
   let currentPage = 'home';
   let isNavigating = false;
   let exploreMode = false;
   let visited = new Set(['home']);
 
-  // All waypoints including sub-locations
+  // All waypoints - endpoints of each trail
   const pageCoords = {
     home: { x: 0, y: 0 },
     cv: { x: 16000, y: 8000 },
-    'cv-fleet': { x: 20000, y: 10000 },
-    'cv-energy': { x: 19000, y: 5000 },
-    'cv-consulting': { x: 21000, y: 8500 },
+    'cv-fleet': { x: 30000, y: 18000 },
+    'cv-energy': { x: 30000, y: -2000 },
+    'cv-consulting': { x: 34000, y: 12000 },
     projects: { x: -12000, y: 14000 },
-    'proj-fleet': { x: -15500, y: 16500 },
-    'proj-home': { x: -9500, y: 17500 },
-    'proj-weather': { x: -15000, y: 11500 },
-    'proj-oss': { x: -10000, y: 10500 },
-    contact: { x: 8000, y: -10000 }
+    'proj-fleet': { x: -24000, y: 26000 },
+    'proj-home': { x: 0, y: 26000 },
+    'proj-weather': { x: -30000, y: 8000 },
+    'proj-oss': { x: -18000, y: -4000 },
+    contact: { x: 12000, y: -16000 }
   };
 
-  // Map sub-waypoints to their parent page
-  const waypointToPage = {
-    home: 'home',
-    cv: 'cv',
-    'cv-fleet': 'cv',
-    'cv-energy': 'cv',
-    'cv-consulting': 'cv',
-    projects: 'projects',
-    'proj-fleet': 'projects',
-    'proj-home': 'projects',
-    'proj-weather': 'projects',
-    'proj-oss': 'projects',
-    contact: 'contact'
+  // Content for each waypoint
+  const nodeContent = {
+    home: { component: Home },
+    cv: {
+      title: 'Experience',
+      subtitle: 'Career journey',
+      description: 'Senior engineer focused on fleet operations, monitoring systems, and developer tooling. Explore the branches to see specific roles.',
+      type: 'hub'
+    },
+    'cv-fleet': {
+      title: 'Fleet Operations',
+      subtitle: 'Senior Software Engineer · 2022 — Present',
+      description: 'Building monitoring pipelines and operator interfaces for electric vehicle fleet management. Real-time telemetry processing, alerting systems, and operational dashboards.',
+      type: 'detail'
+    },
+    'cv-energy': {
+      title: 'Energy Startup',
+      subtitle: 'Software Engineer · 2019 — 2022',
+      description: 'Developed deploy rituals and documentation systems. Focused on humane defaults, team workflows, and making complex systems approachable.',
+      type: 'detail'
+    },
+    'cv-consulting': {
+      title: 'Consulting',
+      subtitle: 'Full Stack Developer · 2016 — 2019',
+      description: 'Client work across web applications, data pipelines, and internal tools. Learned to translate business needs into working software.',
+      type: 'detail'
+    },
+    projects: {
+      title: 'Projects',
+      subtitle: 'Things I\'ve built',
+      description: 'Personal and professional projects. Infrastructure, monitoring, and quiet utilities. Explore the branches to see individual work.',
+      type: 'hub'
+    },
+    'proj-fleet': {
+      title: 'Fleet Telemetry Pipeline',
+      subtitle: 'Active',
+      description: 'Rebuilt monitoring so every event arrives as a story beat. Operators annotate like dramaturgs. Real-time data flows through Kafka into queryable time-series.',
+      type: 'detail'
+    },
+    'proj-home': {
+      title: 'Home Server',
+      subtitle: 'Maintained',
+      description: 'Personal infrastructure hosting generational memories and family archives. ZFS, automated backups, media streaming, and home automation.',
+      type: 'detail'
+    },
+    'proj-weather': {
+      title: 'Weather Station',
+      subtitle: 'Running',
+      description: 'A small device that texts before storms form. Quiet utility for the people around me. Raspberry Pi, sensors, and a simple notification system.',
+      type: 'detail'
+    },
+    'proj-oss': {
+      title: 'Open Source',
+      subtitle: 'Ongoing',
+      description: 'Various contributions to tools I depend on. Patches, docs, and the occasional feature. Giving back to the ecosystem that enables my work.',
+      type: 'detail'
+    },
+    contact: {
+      title: 'Contact',
+      subtitle: 'Get in touch',
+      description: 'For work inquiries, collaborations, or just to say hello.',
+      email: 'hello@alexogeny.dev',
+      github: 'alexogeny',
+      type: 'contact'
+    }
   };
 
-  const bounds = { minX: -18000, maxX: 24000, minY: -12000, maxY: 20000 };
+  const bounds = { minX: -35000, maxX: 40000, minY: -20000, maxY: 30000 };
 
   let offsetX = 0;
   let offsetY = 0;
@@ -52,19 +101,85 @@
     return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
   }
 
-  function animateToPage(targetWaypoint, duration = 2000) {
-    const startCoords = pageCoords[currentPage] || { x: offsetX, y: offsetY };
-    const endCoords = pageCoords[targetWaypoint];
-    const startX = offsetX;
-    const startY = offsetY;
-    const endX = endCoords.x;
-    const endY = endCoords.y;
+  // Find the path between two waypoints
+  function findPath(from, to) {
+    const fromCoord = pageCoords[from];
+    const toCoord = pageCoords[to];
+
+    // Check if going to a main destination from home
+    if (from === 'home') {
+      if (trailPaths[to]?.main) {
+        return trailPaths[to].main;
+      }
+      // Going to a sub-node from home - combine main + branch
+      for (const [mainName, pathData] of Object.entries(trailPaths)) {
+        if (pathData.branches?.[to]) {
+          return [...pathData.main, ...pathData.branches[to].slice(1)];
+        }
+      }
+    }
+
+    // Check if going from a main node to its sub-node
+    for (const [mainName, pathData] of Object.entries(trailPaths)) {
+      if (from === mainName && pathData.branches?.[to]) {
+        return pathData.branches[to];
+      }
+    }
+
+    // Check if going back to home
+    if (to === 'home') {
+      if (trailPaths[from]?.main) {
+        return [...trailPaths[from].main].reverse();
+      }
+      // From a sub-node back to home
+      for (const [mainName, pathData] of Object.entries(trailPaths)) {
+        if (pathData.branches?.[from]) {
+          const branchReversed = [...pathData.branches[from]].reverse();
+          const mainReversed = [...pathData.main].reverse();
+          return [...branchReversed, ...mainReversed.slice(1)];
+        }
+      }
+    }
+
+    // Going from sub-node to parent
+    for (const [mainName, pathData] of Object.entries(trailPaths)) {
+      if (pathData.branches?.[from] && to === mainName) {
+        return [...pathData.branches[from]].reverse();
+      }
+    }
+
+    // Default: straight line
+    return [fromCoord, toCoord];
+  }
+
+  // Interpolate position along a path
+  function getPositionOnPath(path, progress) {
+    if (path.length < 2) return path[0] || { x: 0, y: 0 };
+
+    const totalLength = path.length - 1;
+    const scaledProgress = progress * totalLength;
+    const index = Math.min(Math.floor(scaledProgress), totalLength - 1);
+    const localProgress = scaledProgress - index;
+
+    const p1 = path[index];
+    const p2 = path[index + 1];
+
+    return {
+      x: p1.x + (p2.x - p1.x) * localProgress,
+      y: p1.y + (p2.y - p1.y) * localProgress
+    };
+  }
+
+  let currentPath = [];
+
+  function animateToPage(targetWaypoint, duration = 2500) {
+    currentPath = findPath(currentPage, targetWaypoint);
     const startTime = performance.now();
 
     isNavigating = true;
     exploreMode = false;
-    trailFrom = startCoords;
-    trailTo = endCoords;
+    trailFrom = currentPath[0];
+    trailTo = currentPath[currentPath.length - 1];
     trailProgress = 0;
 
     function step(currentTime) {
@@ -72,20 +187,22 @@
       const progress = Math.min(elapsed / duration, 1);
       const eased = easeInOutCubic(progress);
 
-      offsetX = startX + (endX - startX) * eased;
-      offsetY = startY + (endY - startY) * eased;
-      trailProgress = progress;
+      const pos = getPositionOnPath(currentPath, eased);
+      offsetX = pos.x;
+      offsetY = pos.y;
+      trailProgress = eased;
 
       if (progress < 1) {
         requestAnimationFrame(step);
       } else {
         isNavigating = false;
-        currentPage = waypointToPage[targetWaypoint];
+        currentPage = targetWaypoint;
         visited.add(targetWaypoint);
-        visited = visited; // Trigger reactivity
+        visited = visited;
         trailProgress = 0;
         trailFrom = null;
         trailTo = null;
+        currentPath = [];
       }
     }
 
@@ -135,7 +252,17 @@
     offsetY = Math.max(bounds.minY, Math.min(bounds.maxY, y));
   }
 
-  // Group waypoints for the checklist
+  function goBack() {
+    // Determine where to go back to
+    if (currentPage.startsWith('cv-')) {
+      animateToPage('cv');
+    } else if (currentPage.startsWith('proj-')) {
+      animateToPage('projects');
+    } else if (currentPage !== 'home') {
+      animateToPage('home');
+    }
+  }
+
   const waypointGroups = [
     { label: 'Main', items: ['home', 'cv', 'projects', 'contact'] },
     { label: 'Experience', items: ['cv-fleet', 'cv-energy', 'cv-consulting'] },
@@ -143,23 +270,15 @@
   ];
 
   const labels = {
-    home: 'Home',
-    cv: 'Experience',
-    projects: 'Projects',
-    contact: 'Contact',
-    'cv-fleet': 'Fleet Operations',
-    'cv-energy': 'Energy Startup',
-    'cv-consulting': 'Consulting',
-    'proj-fleet': 'Telemetry Pipeline',
-    'proj-home': 'Home Server',
-    'proj-weather': 'Weather Station',
-    'proj-oss': 'Open Source'
+    home: 'Home', cv: 'Experience', projects: 'Projects', contact: 'Contact',
+    'cv-fleet': 'Fleet Operations', 'cv-energy': 'Energy Startup', 'cv-consulting': 'Consulting',
+    'proj-fleet': 'Telemetry', 'proj-home': 'Home Server', 'proj-weather': 'Weather', 'proj-oss': 'Open Source'
   };
 
   $: visitedCount = visited.size;
   $: totalCount = Object.keys(pageCoords).length;
-
-  const components = { home: Home, cv: CV, projects: Projects, contact: Contact };
+  $: content = nodeContent[currentPage];
+  $: canGoBack = currentPage !== 'home';
 </script>
 
 <TopoBackground
@@ -178,7 +297,33 @@
 
 <main>
   <div class="panel" class:hidden={isNavigating || exploreMode}>
-    <svelte:component this={components[currentPage]} />
+    {#if content?.component}
+      <svelte:component this={content.component} />
+    {:else if content}
+      <header>
+        {#if canGoBack}
+          <button class="back" on:click={goBack}>← Back</button>
+        {:else}
+          <p class="site-name">ALEXOGENY.DEV</p>
+        {/if}
+        <h1>{content.title}</h1>
+        {#if content.subtitle}
+          <p class="subtitle">{content.subtitle}</p>
+        {/if}
+      </header>
+
+      <div class="content">
+        <p>{content.description}</p>
+      </div>
+
+      {#if content.type === 'contact'}
+        <div class="links">
+          <a href="mailto:{content.email}">{content.email}</a>
+          <span class="dot">·</span>
+          <a href="https://github.com/{content.github}" target="_blank" rel="noopener">github</a>
+        </div>
+      {/if}
+    {/if}
 
     <div class="panel-footer">
       <button class="explore-btn" on:click={enterExploreMode}>
@@ -186,9 +331,9 @@
           <circle cx="12" cy="12" r="10"/>
           <path d="M12 2v4M12 18v4M2 12h4M18 12h4"/>
         </svg>
-        Explore Map
+        Explore
       </button>
-      <span class="progress">{visitedCount}/{totalCount} discovered</span>
+      <span class="progress">{visitedCount}/{totalCount}</span>
     </div>
   </div>
 
@@ -242,8 +387,79 @@
     pointer-events: none;
   }
 
+  header {
+    margin-bottom: 1.5rem;
+  }
+
+  .site-name {
+    font-size: 0.7rem;
+    letter-spacing: 0.3em;
+    color: var(--text-accent);
+    margin-bottom: 0.5rem;
+  }
+
+  .back {
+    background: none;
+    border: none;
+    font-size: 0.75rem;
+    color: var(--text-accent);
+    cursor: pointer;
+    padding: 0;
+    margin-bottom: 0.5rem;
+    transition: color 0.2s;
+    font-family: inherit;
+  }
+
+  .back:hover {
+    color: var(--text-muted);
+  }
+
+  h1 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin: 0;
+  }
+
+  .subtitle {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 0.25rem;
+  }
+
+  .content {
+    margin-bottom: 1.5rem;
+  }
+
+  .content p {
+    font-size: 0.875rem;
+    line-height: 1.6;
+    color: var(--text-muted);
+  }
+
+  .links {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    font-size: 0.875rem;
+    margin-bottom: 1rem;
+  }
+
+  .links a {
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+
+  .links a:hover {
+    color: var(--text-primary);
+  }
+
+  .dot {
+    color: var(--text-accent);
+  }
+
   .panel-footer {
-    margin-top: 2rem;
+    margin-top: 1.5rem;
     padding-top: 1.5rem;
     border-top: 1px solid var(--panel-border);
     display: flex;
@@ -332,11 +548,11 @@
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     pointer-events: auto;
-    max-width: 200px;
+    max-width: 180px;
   }
 
   .checklist h4 {
-    font-size: 0.7rem;
+    font-size: 0.65rem;
     letter-spacing: 0.15em;
     color: var(--text-accent);
     text-transform: uppercase;
@@ -344,7 +560,7 @@
   }
 
   .checklist-group {
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.5rem;
   }
 
   .checklist-group:last-child {
@@ -352,22 +568,22 @@
   }
 
   .group-label {
-    font-size: 0.65rem;
+    font-size: 0.6rem;
     color: var(--text-accent);
     text-transform: uppercase;
     letter-spacing: 0.1em;
     display: block;
-    margin-bottom: 0.25rem;
+    margin-bottom: 0.2rem;
   }
 
   .checklist-item {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    font-size: 0.75rem;
+    gap: 0.4rem;
+    font-size: 0.7rem;
     color: var(--text-muted);
     opacity: 0.5;
-    padding: 0.15rem 0;
+    padding: 0.1rem 0;
   }
 
   .checklist-item.visited {
@@ -376,7 +592,7 @@
   }
 
   .check {
-    font-size: 0.6rem;
+    font-size: 0.55rem;
   }
 
   .checklist-item.visited .check {
